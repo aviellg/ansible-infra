@@ -1,0 +1,16 @@
+[all]
+test1.lan
+test2.lan
+test3.lan
+test4.lan
+test10.lan
+test11.lan
+test20.lan
+test21.lan
+test22.lan
+ct101.lan
+kasmct.lan
+129.159.144.58
+menualct.lan
+[local]
+localhost ansible_connection=local

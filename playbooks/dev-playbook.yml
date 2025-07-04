@@ -1,0 +1,33 @@
+---
+- name: Test Docker and Traefik roles
+  hosts: all
+  become: true
+  remote_user: "{{ bootstrap_admin_user }}"
+  vars_files:
+    - group_vars/all/vars.yml
+    - group_vars/all/vault.yml
+
+  tasks:
+    - name: Print loaded variables
+      debug:
+        msg:
+          - "PUID: {{ PUID }}"
+          - "PGID: {{ PGID }}"
+          - "TZ: {{ TZ }}"
+          - "USERDIR: /home/{{ bootstrap_admin_user }}"
+          - "DOCKERDIR: /home/{{ bootstrap_admin_user }}/docker"
+          - "DATADIR: /media/storage"
+          - "HOSTNAME: {{ HOSTNAME }}"
+          - "DOMAINNAME_1: {{ DOMAINNAME_1 }}"
+          - "LOCAL_IPS: {{ LOCAL_IPS }}"
+          - "CLOUDFLARE_IPS: {{ CLOUDFLARE_IPS }}"
+
+  roles:
+    - role: geerlingguy.docker
+      tags: docker
+    - role: geerlingguy.pip
+      tags: docker
+    - role: ansible-role-setup
+      tags: docker
+    - role: ansible-role-traefik
+      tags: traefik

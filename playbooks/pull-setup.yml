@@ -1,0 +1,28 @@
+---
+- name: run playbook 
+  hosts: localhost
+  gather_facts: true
+  vars:
+    need_sudo: false
+
+  tasks:
+    - name: Install required roles
+      ansible.builtin.shell: ansible-galaxy install -r requirements.yml -f
+      args:
+        creates: /etc/ansible/roles/ansible-role-setup
+
+    - name: Check if running as root
+      command: id -u
+      register: result
+      changed_when: false
+      check_mode: no
+
+    - name: Set need_sudo variable
+      set_fact:
+        need_sudo: "{{ (result.stdout | int) != 0 }}"
+
+    - name: Include setup role
+      include_role:
+        name: ansible-role-setup
+      vars:
+        ansible_become: "{{ need_sudo }}"
