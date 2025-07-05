@@ -1,0 +1,24 @@
+---
+bootstrap_install_list:
+  - git
+  - htop
+  - sudo
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - ntp
+  - zip
+  - unzip
+  - apt-transport-https
+  - net-tools
+  - ncdu
+  - apache2-utils
+  - nano
+  - ufw
+  - neofetch
+  - python3-pip
+  - qemu-guest-agent
+  - aptitude
+  
+bootstrap_admin_user: autoadmin

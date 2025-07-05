@@ -1,0 +1,95 @@
+- name: Update and upgrade the OS
+  apt:
+    update_cache: yes
+    upgrade: dist
+  register: upgrade_result
+
+- name: Install required software
+  apt:
+    name: "{{ bootstrap_install_list }}"
+    state: present
+
+- name: Ensure wheel group exists
+  group:
+    name: wheel
+    state: present
+
+- name: Ensure users group exists
+  group:
+    name: users
+    state: present
+
+- name: Ensure docker group exists
+  group:
+    name: docker
+    state: present
+
+- name: Set passwordless sudo for wheel group
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^%wheel'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+
+- name: Create the bootstrap admin user
+  user:
+    name: "{{ bootstrap_admin_user }}"
+    groups: "wheel,docker,users"
+    append: yes
+    create_home: yes
+    shell: /bin/bash
+    state: present
+
+- name: Create .ssh folder for bootstrap admin user
+  file:
+    path: "/home/{{ bootstrap_admin_user }}/.ssh"
+    state: directory
+    owner: "{{ bootstrap_admin_user }}"
+    group: "{{ bootstrap_admin_user }}"
+    mode: '0700'
+
+- name: Set permissions for the user home directory
+  file:
+    path: "/home/{{ bootstrap_admin_user }}"
+    owner: "{{ bootstrap_admin_user }}"
+    group: "{{ bootstrap_admin_user }}"
+    mode: '0700'
+
+- name: Create authorized keys file from template
+  template:
+    src: authorized_keys.j2
+    dest: "/home/{{ bootstrap_admin_user }}/.ssh/authorized_keys"
+    owner: "{{ bootstrap_admin_user }}"
+    group: "{{ bootstrap_admin_user }}"
+    mode: '0644'
+
+- name: Create authorized keys file in current user's home directory
+  template:
+    src: authorized_keys.j2
+    dest: "{{ ansible_env.HOME }}/.ssh/authorized_keys"
+    owner: "{{ ansible_env.USER }}"
+    group: "{{ ansible_env.USER }}"
+    mode: '0644'
+
+- name: Ensure SSH changes are correct
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart ssh
+
+- name: Debug - Display upgrade result
+  debug:
+    var: upgrade_result
+
+- name: Debug - Display ansible_distribution
+  debug:
+    var: ansible_distribution
+
+- name: Notify if reboot is needed
+  debug:
+    msg: "Reboot required to apply updates."
+  when: upgrade_result.changed 
