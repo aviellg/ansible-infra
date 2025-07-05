@@ -1,6 +1,6 @@
 ---
-- name: run playbook 
-  hosts: localhost
+- name: run playbook to setup remote server
+  hosts: all
   gather_facts: true
   vars:
     need_sudo: false
