@@ -1,0 +1,23 @@
+- name: Ensure NFS client is installed
+  become: true
+  apt:
+    name: nfs-common
+    state: present
+
+- name: Create mount point for NFS share
+  become: true
+  file:
+    path: {{DOCKERDIR}}
+    state: directory
+    owner: "{{ bootstrap_admin_user }}"
+    group: "{{ bootstrap_admin_user }}"
+    mode: '0755'
+
+- name: Mount NFS share from truenas.lan
+  become: true
+  mount:
+    path: {{DOCKERDIR}}
+    src: truenas.lan:/mnt/bigdisk/appdata
+    fstype: nfs
+    opts: rw
+    state: mounted

@@ -27,6 +27,8 @@
       tags: docker
     - role: geerlingguy.pip
       tags: docker
+    - role: ansible-role-nfs
+      tags: nfs
     - role: ansible-role-setup
       tags: docker
     - role: ansible-role-traefik

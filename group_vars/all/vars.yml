@@ -25,12 +25,11 @@ bootstrap_install_list:
 bootstrap_admin_user: autoadmin
 
 # Docker Role Variables
-docker_root_folder: "/home/{{ bootstrap_admin_user }}/docker"
 PUID: 1000
 PGID: 1000
 TZ: "Asia/Jerusalem"
 USERDIR: "/home/{{ bootstrap_admin_user }}"
-DOCKERDIR: "/home/{{ bootstrap_admin_user }}/docker"
+DOCKERDIR: "/media/dockerdir"
 DATADIR: "/media/storage"
 HOSTNAME: "udms"
 
