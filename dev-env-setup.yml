@@ -3,8 +3,18 @@
   hosts: localhost
   become: false
   tasks:
+    - name: Remove existing roles directory
+      file:
+        path: "./galaxy_roles"
+        state: absent
+
+    - name: Ensure roles directory exists
+      file:
+        path: "./galaxy_roles"
+        state: directory
+
     - name: Install required roles
-      command: ansible-galaxy install -r requirements.yml -p galaxy_roles
+      command: ansible-galaxy install -r requirements.yml -f
       register: result
       ignore_errors: true
 

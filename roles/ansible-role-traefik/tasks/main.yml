@@ -75,11 +75,8 @@
       - "LOCAL_IPS: {{ LOCAL_IPS }}"
   when: false
 
-- name: Install passlib for htpasswd
-  become: true
-  pip:
-    name: passlib
-  tags: passlib
+- name: Make sure we can use htpasswd module
+  apt: "pkg=python3-passlib state=present"
 
 - name: Create Basic Auth credentials secret file with correct permissions
   become: true
