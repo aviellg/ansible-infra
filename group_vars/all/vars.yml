@@ -24,13 +24,18 @@ bootstrap_install_list:
   
 bootstrap_admin_user: autoadmin
 
+# variables for auto-mounting SMB shares
+smb_username: "{{ vault_smb_username }}"
+smb_password: "{{ vault_smb_password }}"
+smb_server_path: "192.168.14.65/workgroup"
+
 # Docker Role Variables
 PUID: 1000
 PGID: 1000
 TZ: "Asia/Jerusalem"
 USERDIR: "/home/{{ bootstrap_admin_user }}"
 DOCKERDIR: "/media/dockerdir"
-DATADIR: "/media/storage"
+DATADIR: " "
 HOSTNAME: "udms"
 
 # Traefik Role Variables
