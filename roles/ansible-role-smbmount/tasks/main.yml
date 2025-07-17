@@ -1,58 +1,46 @@
+
 - name: Install autofs and cifs-utils
-  become: true
   apt:
     name:
       - autofs
       - cifs-utils
     state: present
-
+  notify: Restart autof
 - name: Template auto.master to /etc
-  become: true
   template:
     src: auto.master
     dest: /etc/auto.master
     owner: root
     group: root
     mode: '0644'
-
+  notify: Restart autof
 - name: Template auto.smb.shares to /etc
-  become: true
   template:
     src: auto.smb.shares
     dest: /etc/auto.smb.shares
     owner: root
     group: root
     mode: '0644'
-
+  notify: Restart autof
 - name: Template credentials file to /etc
-  become: true
   template:
     src: .credentials.txt
     dest: /etc/.credentials.txt
     owner: root
     group: root
     mode: '0600'
-
+  notify: Restart autof
 - name: Create mount directory
-  become: true
   file:
     path: /mnt/data
     state: directory
     owner: root
     group: root
     mode: '0755'
-
-- name: Restart autofs
-  become: true
-  service:
-    name: autofs
-    state: restarted
-
+  notify: Restart autof
 - name: List contents of /mnt/data
-  become: true
   command: ls /mnt/data
-  register: ls_output
-
+  register: ls_outpu
 - name: Show /mnt/data contents
   debug:
     var: ls_output.stdout
