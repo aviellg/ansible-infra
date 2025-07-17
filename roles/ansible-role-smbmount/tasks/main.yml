@@ -1,4 +1,3 @@
-```yaml
 - name: Install autofs and cifs-utils
   become: true
   apt:
@@ -57,4 +56,3 @@
 - name: Show /mnt/data contents
   debug:
     var: ls_output.stdout
-```

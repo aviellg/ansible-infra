@@ -6,24 +6,6 @@
   vars_files:
     - group_vars/all/vars.yml
     - group_vars/all/vault.yml
-  tasks:
-    - name: Ensure NFS client is installed
-      apt:
-        name: nfs-common
-        state: present
-
-    - name: Create mount point for NFS share
-      file:
-        path: "{{ DOCKERDIR }}"
-        state: directory
-        owner: "{{ bootstrap_admin_user }}"
-        group: "{{ bootstrap_admin_user }}"
-        mode: '0755'
-
-    - name: Mount NFS share from truenas.lan
-      mount:
-        path: "{{ DOCKERDIR }}"
-        src: truenas.lan:/mnt/bigdisk/appdata
-        fstype: nfs
-        opts: rw
-        state: mounted
+  roles:
+    - role: ansible-role-smbmount
+      tags: nfs

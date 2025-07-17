@@ -12,7 +12,7 @@
       tags: docker
     - role: geerlingguy.pip
       tags: docker
-    - role: ansible-role-nfs
+    - role: ansible-role-smbmount
       tags: nfs
     - role: ansible-role-setup
       tags: docker
