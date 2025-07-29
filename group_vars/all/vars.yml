@@ -35,7 +35,7 @@ PGID: 1000
 TZ: "Asia/Jerusalem"
 USERDIR: "/home/{{ bootstrap_admin_user }}"
 DOCKERDIR: "/media/dockerdir"
-DATADIR: " "
+DATADIR: "/mnt/data" "
 HOSTNAME: "udms"
 
 # Traefik Role Variables
