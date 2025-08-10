@@ -9,7 +9,7 @@ services:
     networks:
       socket_proxy:
         ipv4_address: 192.168.91.254 # You can specify a static IP
-    privileged: {{ docker_privileged_mode }} # Use the variable to set privileged mode
+    privileged: $docker_privileged_mode # Use the variable to set privileged mode
     ports:
       - "127.0.0.1:2375:2375" # Do not expose this to the internet with port forwarding
     volumes:
@@ -46,3 +46,11 @@ services:
       - SYSTEM=0
       - TASKS=1 # Portainer
       - VOLUMES=1 # Portainer
+networks:
+  socket_proxy:
+    name: socket_proxy
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.91.0/24
+

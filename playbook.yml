@@ -8,13 +8,13 @@
     - group_vars/all/vault.yml
 
   roles:
-    - role: geerlingguy.docker
-      tags: docker
-    - role: geerlingguy.pip
-      tags: docker
-    - role: ansible-role-smbmount
-      tags: nfs
-    - role: ansible-role-setup
-      tags: docker
+  #  - role: geerlingguy.docker
+  #    tags: docker
+  #  - role: geerlingguy.pip
+  #    tags: docker
+  #  - role: ansible-role-smbmount
+  #    tags: nfs
+  #  - role: ansible-role-setup
+  #    tags: docker
     - role: ansible-role-traefik
       tags: traefik

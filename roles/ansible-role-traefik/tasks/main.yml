@@ -1,6 +1,106 @@
 # ansible-role-traefik/tasks/main.yml
+- name: set uid and guid for bootstrap user 
+  block:
+    - name: Get UID of the user
+      command: "id -u {{ bootstrap_admin_user }}"
+      register: uid_result
+      changed_when: false
 
-- name: Detect environment and set docker_privileged_mode
+    - name: Get GID of the user
+      command: "id -g {{ bootstrap_admin_user }}"
+      register: gid_result
+      changed_when: false
+
+    - name: Set PUID and PGID variables
+      set_fact:
+        PUID: "{{ uid_result.stdout }}"
+        PGID: "{{ gid_result.stdout }}"
+
+- name: Allow HTTP traffic through firewall
+  become: true
+  ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+  tags: firewall
+
+- name: Create docker necessary directories with correct permissions
+  become: true
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default(bootstrap_admin_user) }}"
+    group: "{{ item.group | default(bootstrap_admin_user) }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop:
+    - { path: "{{DOCKERDIR}}/secrets", mode: "0700" }
+    - { path: "{{DOCKERDIR}}/logs/udms", mode: "0755" }
+    - { path: "{{DOCKERDIR}}/appdata", mode: "0775" }
+
+  tags:
+    - directories
+    - log_dirs
+    - secrets_dir
+
+- name: ACL for docker directories
+  block:
+    - name: Ensure ACL package is installed
+      become: true
+      apt:
+        name: acl
+        state: present
+        update_cache: yes
+
+    - name: Ensure docker root directory exists
+      become: true
+      file:
+        path: "{{ DOCKERDIR }}/appdata"
+        state: directory
+        owner: "{{ bootstrap_admin_user }}"
+        group: "{{ bootstrap_admin_user }}"
+        mode: '0775'
+
+    - name: Set ACLs for docker group and bootstrap user (default and non-default)
+      become: true
+      ansible.posix.acl:
+        path: "{{ DOCKERDIR }}/appdata"
+        entity: "{{ item.entity }}"
+        etype: "{{ item.etype }}"
+        permissions: rwx
+        default: "{{ item.default | default(false) }}"
+        recursive: yes
+        state: present
+      loop:
+        - { entity: "{{ bootstrap_admin_user }}", etype: "user", default: true }
+        - { entity: "{{ bootstrap_admin_user }}", etype: "user", default: false }
+        - { entity: "docker", etype: "group", default: true }
+        - { entity: "docker", etype: "group", default: false }
+
+- name: copy docker-compose files to docker directory (except .env files)
+  become: true
+  template:
+    src: "{{ item }}"
+    dest: "{{DOCKERDIR}}/{{ item | basename | regex_replace('.j2$', '') }}"
+    owner: "{{ bootstrap_admin_user }}"
+    group: "{{ bootstrap_admin_user }}"
+    mode: '0644'
+  with_fileglob:
+    - "{{ role_path }}/templates/services/*.j2"
+  tags: compose_file
+
+- name: copy only .env file
+  become: true
+  template:
+    src: "{{ item }}"
+    dest: "/home/{{ bootstrap_admin_user }}/docker/.env"
+    owner: root
+    group: root
+    mode: '0600'
+  with_fileglob:
+    - "{{ role_path }}/templates/services/.env"
+  tags: compose_file
+  
+- name: socket proxy - Detect environment and set docker_privileged_mode
   block:
     - name: Detect if running inside a container
       set_fact:
@@ -11,200 +111,190 @@
         docker_privileged_mode: "{{ 'false' if is_container else 'true' }}"
   tags: docker_privileged_mode
 
-- name: Allow HTTP traffic through firewall
-  become: true
-  ufw:
-    rule: allow
-    port: '80'
-    proto: tcp
-  tags: firewall
-
-- name: Create necessary directories with correct permissions
-  become: true
-  file:
-    path: "{{ item.path }}"
-    state: directory
-    owner: "{{ item.owner | default(bootstrap_admin_user) }}"
-    group: "{{ item.group | default(bootstrap_admin_user) }}"
-    mode: "{{ item.mode | default('0755') }}"
-  loop:
-    - { path: "/home/{{ bootstrap_admin_user }}/docker/secrets", mode: "0700" }
-    - { path: "/home/{{ bootstrap_admin_user }}/docker/logs/udms", mode: "0755" }
-    - { path: "/home/{{ bootstrap_admin_user }}/docker/logs/udms/traefik", mode: "0755" }
-    - { path: "/home/{{ bootstrap_admin_user }}/docker/appdata/traefik3", mode: "0755" }
-    - { path: "/home/{{ bootstrap_admin_user }}/docker/appdata/traefik3/acme", mode: "0755" }
-    - { path: "/home/{{ bootstrap_admin_user }}/docker/appdata/traefik3/rules", mode: "0755" }
-    - { path: "/home/{{ bootstrap_admin_user }}/docker/appdata/traefik3/rules/udms", mode: "0755" }
-  tags:
-    - directories
-    - log_dirs
-    - traefik_dirs
-    - secrets_dir
+- name: traefik - secrets, acme,logs, and templates
+  block:  
+    - name: Create traefik directories with correct permissions
+      become: true
+      file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default(bootstrap_admin_user) }}"
+        group: "{{ item.group | default(bootstrap_admin_user) }}"
+        mode: "{{ item.mode | default('0755') }}"
+      loop:
+        - { path: "{{DOCKERDIR}}/logs/udms/traefik", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/traefik3/acme", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/traefik3/rules/udms", mode: "0755" }
+      tags:
+        - directories
+        - log_dirs
+        - traefik_dirs
+        - secrets_dir
+  
+    - name: Make sure we can use htpasswd module
+      apt: "pkg=python3-passlib state=present"
     
-- name: Ensure .env file exists with correct permissions and content
-  become: true
-  copy:
-    content: |
-      PUID={{ PUID }}
-      PGID={{ PGID }}
-      TZ={{ TZ }}
-      USERDIR=/home/{{ bootstrap_admin_user }}
-      DOCKERDIR=/home/{{ bootstrap_admin_user }}/docker
-      DATADIR=/media/storage
-      HOSTNAME={{ HOSTNAME }}
-      DOMAINNAME_1={{ DOMAINNAME_1 }}
-      LOCAL_IPS={{ LOCAL_IPS }}
-      CLOUDFLARE_IPS={{ CLOUDFLARE_IPS }}
-    dest: /home/{{ bootstrap_admin_user }}/docker/.env
-    owner: root
-    group: root
-    mode: '0600'
-  tags: env_file
+    - name: Create Basic Auth credentials secret file with correct permissions
+      become: true
+      ansible.builtin.htpasswd:
+        path: "{{DOCKERDIR}}/secrets/basic_auth_credentials"
+        name: "{{ http_username }}"
+        password: "{{ http_password }}"
+        owner: root
+        group: root
+        mode: '0644'
+      tags: secrets_file
+    
+    - name: Create Cloudflare DNS API token file
+      become: true
+      copy:
+        content: "{{ cloudflare_dns_api_token }}"
+        dest: "{{DOCKERDIR}}/secrets/cf_dns_api_token"
+        owner: root
+        group: root
+        mode: '0600'
+      tags: secrets_file
+    
+    - name: Check if acme.json file exists
+      become: true
+      stat:
+        path: "{{DOCKERDIR}}/appdata/traefik3/acme/acme.json"
+      register: acme_file
+    
+    - name: Clear acme.json file if reset_acme is true
+      become: true
+      copy:
+        content: ""
+        dest: "{{DOCKERDIR}}/appdata/traefik3/acme/acme.json"
+        owner: root
+        group: root
+        mode: '0600'
+      when: acme_file.stat.exists and reset_acme
+      tags: acme_file
+    
+    - name: Create empty acme.json file if it doesn't exist
+      become: true
+      file:
+        path: "{{DOCKERDIR}}/appdata/traefik3/acme/acme.json"
+        state: touch
+        mode: '0600'
+      when: not acme_file.stat.exists
+      tags: acme_file
+    
+    - name: Clear traefik.log if reset_logs is true
+      become: true
+      copy:
+        content: ""
+        dest: "{{DOCKERDIR}}/logs/udms/traefik/traefik.log"
+        owner: "{{ bootstrap_admin_user }}"
+        group: "{{ bootstrap_admin_user }}"
+        mode: '0644'
+      when: reset_logs | default(false)
+      notify: Stop traefik container
+      tags: log_files
+    
+    - name: Clear access.log if reset_logs is true
+      become: true
+      copy:
+        content: ""
+        dest: "{{DOCKERDIR}}/logs/udms/traefik/access.log"
+        owner: "{{ bootstrap_admin_user }}"
+        group: "{{ bootstrap_admin_user }}"
+        mode: '0644'
+      when: reset_logs | default(false)
+      notify: Stop traefik container
+      tags: log_files
+    
+    - name: Check if traefik.log exists
+      stat:
+        path: "{{DOCKERDIR}}/logs/udms/traefik/traefik.log"
+      register: traefik_log_file
+      tags: log_files
+    
+    - name: Create empty traefik.log file if it doesn't exist
+      become: true
+      file:
+        path: "{{DOCKERDIR}}/logs/udms/traefik/traefik.log"
+        state: touch
+      when: not traefik_log_file.stat.exists
+      tags: log_files
+    
+    - name: Check if access.log exists
+      stat:
+        path: "{{DOCKERDIR}}/logs/udms/traefik/access.log"
+      register: access_log_file
+      tags: log_files
+    
+    - name: Create empty access.log file if it doesn't exist
+      become: true
+      file:
+        path: "{{DOCKERDIR}}/logs/udms/traefik/access.log"
+        state: touch
+      when: not access_log_file.stat.exists
+      tags: log_files
 
-- name: Print loaded variables used for troubleshooting purposes
-  debug:
-    msg:
-      - "PUID: {{ PUID }}"
-      - "PGID: {{ PGID }}"
-      - "TZ: {{ TZ }}"
-      - "USERDIR: /home/{{ bootstrap_admin_user }}"
-      - "DOCKERDIR: /home/{{ bootstrap_admin_user }}/docker"
-      - "DATADIR: /media/storage"
-      - "HOSTNAME: {{ HOSTNAME }}"
-      - "DOMAINNAME_1: {{ DOMAINNAME_1 }}"
-      - "LOCAL_IPS: {{ LOCAL_IPS }}"
-  when: false
+    - name: Copy all traefik templates to rules/udms directory
+      become: true
+      template:
+        src: "{{ item }}"
+        dest: "{{DOCKERDIR}}/appdata/traefik3/rules/udms/{{ item | basename | regex_replace('.j2$', '') }}"
+        owner: "{{ bootstrap_admin_user }}"
+        group: "{{ bootstrap_admin_user }}"
+        mode: '0644'
+      with_fileglob:
+        - "{{ role_path }}/templates/traefik/*.j2"
+      tags: compose_file
 
-- name: Make sure we can use htpasswd module
-  apt: "pkg=python3-passlib state=present"
+- name: authentik - secrets, config and templates
+  block:
+    - name: remove current data and container
+      become: true
+      file:
+        path: "{{DOCKERDIR}}/appdata/authentik"
+        state: absent
+      when: reset_authentik | default(false)
+      ignore_errors: true
+    - name: remove authentik docker-compose file
+      community.docker.docker_compose_v2:
+        project_src: "{{DOCKERDIR}}"
+        files: ["{{DOCKERDIR}}/docker-compose.authentik.yml"]
+        state: absent
+      when: reset_authentik | default(false)
+      ignore_errors: true
 
-- name: Create Basic Auth credentials secret file with correct permissions
-  become: true
-  ansible.builtin.htpasswd:
-    path: /home/{{ bootstrap_admin_user }}/docker/secrets/basic_auth_credentials
-    name: "{{ http_username }}"
-    password: "{{ http_password }}"
-    owner: root
-    group: root
-    mode: '0644'
-  tags: secrets_file
+    - name: Create authentik directories with correct permissions
+      become: true
+      file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default(bootstrap_admin_user) }}"
+        group: "{{ item.group | default(bootstrap_admin_user) }}"
+        mode: "{{ item.mode | default('0755') }}"
+      loop:
+        - { path: "{{DOCKERDIR}}/appdata/authentik/database", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/authentik/redis", mode: "0775" }
+        - { path: "{{DOCKERDIR}}/appdata/authentik/media", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/authentik/custom-templates", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/authentik/certs", mode: "0755" }
+      tags:
+        - authentik-directories
 
-- name: Create Cloudflare DNS API token file
-  become: true
-  copy:
-    content: "{{ cloudflare_dns_api_token }}"
-    dest: /home/{{ bootstrap_admin_user }}/docker/secrets/cf_dns_api_token
-    owner: root
-    group: root
-    mode: '0600'
-  tags: secrets_file
-
-- name: Check if acme.json file exists
-  become: true
-  stat:
-    path: /home/{{ bootstrap_admin_user }}/docker/appdata/traefik3/acme/acme.json
-  register: acme_file
-
-- name: Clear acme.json file if reset_acme is true
-  become: true
-  copy:
-    content: ""
-    dest: /home/{{ bootstrap_admin_user }}/docker/appdata/traefik3/acme/acme.json
-    owner: root
-    group: root
-    mode: '0600'
-  when: acme_file.stat.exists and reset_acme
-  tags: acme_file
-
-- name: Create empty acme.json file if it doesn't exist
-  become: true
-  file:
-    path: /home/{{ bootstrap_admin_user }}/docker/appdata/traefik3/acme/acme.json
-    state: touch
-    mode: '0600'
-  when: not acme_file.stat.exists
-  tags: acme_file
-
-- name: Clear traefik.log if reset_logs is true
-  become: true
-  copy:
-    content: ""
-    dest: /home/{{ bootstrap_admin_user }}/docker/logs/udms/traefik/traefik.log
-    owner: "{{ bootstrap_admin_user }}"
-    group: "{{ bootstrap_admin_user }}"
-    mode: '0644'
-  when: reset_logs | default(false)
-  notify: Stop traefik container
-  tags: log_files
-
-- name: Clear access.log if reset_logs is true
-  become: true
-  copy:
-    content: ""
-    dest: /home/{{ bootstrap_admin_user }}/docker/logs/udms/traefik/access.log
-    owner: "{{ bootstrap_admin_user }}"
-    group: "{{ bootstrap_admin_user }}"
-    mode: '0644'
-  when: reset_logs | default(false)
-  notify: Stop traefik container
-  tags: log_files
-
-- name: Check if traefik.log exists
-  stat:
-    path: /home/{{ bootstrap_admin_user }}/docker/logs/udms/traefik/traefik.log
-  register: traefik_log_file
-  tags: log_files
-
-- name: Create empty traefik.log file if it doesn't exist
-  become: true
-  file:
-    path: /home/{{ bootstrap_admin_user }}/docker/logs/udms/traefik/traefik.log
-    state: touch
-  when: not traefik_log_file.stat.exists
-  tags: log_files
-
-- name: Check if access.log exists
-  stat:
-    path: /home/{{ bootstrap_admin_user }}/docker/logs/udms/traefik/access.log
-  register: access_log_file
-  tags: log_files
-
-- name: Create empty access.log file if it doesn't exist
-  become: true
-  file:
-    path: /home/{{ bootstrap_admin_user }}/docker/logs/udms/traefik/access.log
-    state: touch
-  when: not access_log_file.stat.exists
-  tags: log_files
-
-- name: Copy all service templates to docker directory
-  become: true
-  template:
-    src: "{{ item }}"
-    dest: "/home/{{ bootstrap_admin_user }}/docker/{{ item | basename | regex_replace('.j2$', '') }}"
-    owner: "{{ bootstrap_admin_user }}"
-    group: "{{ bootstrap_admin_user }}"
-    mode: '0644'
-  with_fileglob:
-    - "{{ role_path }}/templates/services/*.j2"
-  tags: compose_file
-
-- name: Copy all traefik templates to rules/udms directory
-  become: true
-  template:
-    src: "{{ item }}"
-    dest: "/home/{{ bootstrap_admin_user }}/docker/appdata/traefik3/rules/udms/{{ item | basename | regex_replace('.j2$', '') }}"
-    owner: "{{ bootstrap_admin_user }}"
-    group: "{{ bootstrap_admin_user }}"
-    mode: '0644'
-  with_fileglob:
-    - "{{ role_path }}/templates/traefik/*.j2"
-  tags: compose_file
+- name: cloudflrae-ddns - secret
+  block:
+    - name: Create Cloudflare DNS API token file
+      become: true
+      copy:
+        content: "{{ cloudflare_dns_api_token }}"
+        dest: "{{DOCKERDIR}}/secrets/cf_dns_api_token"
+        owner: root
+        group: root
+        mode: '0600'
+      tags: secrets_file
 
 - name: start Docker Compose stack
   become: true
   community.docker.docker_compose_v2:
-    project_src: /home/{{ bootstrap_admin_user }}/docker
+    project_src: "{{DOCKERDIR}}"
     files: "{{ compose_files }}"
     state: present
   tags: docker_compose

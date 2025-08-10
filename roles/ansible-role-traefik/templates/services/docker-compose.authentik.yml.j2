@@ -1,0 +1,119 @@
+---
+
+services:
+  postgresql:
+    container_name: authentik-postgresql
+    security_opt:
+      - no-new-privileges:true
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - ${DOCKERDIR}/appdata/authentik/database:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: $AUTHENTIK_POSTGRESQL__PASSWORD
+      POSTGRES_USER: $AUTHENTIK_POSTGRESQL__USER
+      POSTGRES_DB: $AUTHENTIK_POSTGRESQL__NAME
+    networks:
+      - authentik-internal
+  redis:
+    user: $PUID:$PGID
+    container_name: authentik-redis
+    security_opt:
+      - no-new-privileges:true
+    image: docker.io/library/redis:alpine
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    volumes:
+      - ${DOCKERDIR}/appdata/authentik/redis:/data
+    networks:
+      - authentik-internal
+  server:
+    container_name: authentik-server
+    security_opt:
+      - no-new-privileges:true
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.6.4}
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_SECRET_KEY: $AUTHENTIK_SECRET_KEY
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql
+      AUTHENTIK_POSTGRESQL__USER: $AUTHENTIK_POSTGRESQL__USER
+      AUTHENTIK_POSTGRESQL__NAME: $AUTHENTIK_POSTGRESQL__NAME
+      AUTHENTIK_POSTGRESQL__PASSWORD: $AUTHENTIK_POSTGRESQL__PASSWORD
+    volumes:
+      - ${DOCKERDIR}/appdata/authentik/media:/media
+      - ${DOCKERDIR}/appdata/authentik/custom-templates:/templates
+    networks:
+      - authentik-internal
+      - t3_proxy
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      # HTTP Routers
+      - "traefik.http.routers.authentik-rtr.entrypoints=websecure"
+      - "traefik.http.routers.authentik-rtr.rule=Host(`authentik.$DOMAINNAME_1`)"
+      # Middlewares
+      - "traefik.http.routers.authentik-rtr.middlewares=chain-internal-no-auth@file"
+      # HTTP Services
+      - "traefik.http.routers.authentik-rtr.service=authentik-svc"
+      - "traefik.http.services.authentik-svc.loadbalancer.server.port=9000"
+  worker:
+    container_name: authentik_worker
+    security_opt:
+      - no-new-privileges:true
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.6.4}
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: $AUTHENTIK_SECRET_KEY
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql
+      AUTHENTIK_POSTGRESQL__USER: $AUTHENTIK_POSTGRESQL__USER
+      AUTHENTIK_POSTGRESQL__NAME: $AUTHENTIK_POSTGRESQL__NAME
+      AUTHENTIK_POSTGRESQL__PASSWORD: $AUTHENTIK_POSTGRESQL__PASSWORD
+
+    # `user: root` and the docker socket volume are optional.
+    # See more for the docker socket integration here:
+    # https://goauthentik.io/docs/outposts/integrations/docker
+    # Removing `user: root` also prevents the worker from fixing the permissions
+    # on the mounted folders, so when removing this make sure the folders have the correct UID/GID
+    # (1000:1000 by default)
+    user: $PUID:$PGID
+    volumes:
+    #  - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKERDIR}/appdata/authentik/media:/media
+      - ${DOCKERDIR}/appdata/authentik/certs:/certs
+      - ${DOCKERDIR}/appdata/authentik/custom-templates:/templates
+    networks:
+      - authentik-internal
+      - socket_proxy
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+networks:
+  t3_proxy:
+    external: true
+  authentik-internal:
+    driver: bridge
+  socket_proxy:
+    external: true

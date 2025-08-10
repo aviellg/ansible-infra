@@ -34,8 +34,8 @@ PUID: 1000
 PGID: 1000
 TZ: "Asia/Jerusalem"
 USERDIR: "/home/{{ bootstrap_admin_user }}"
-DOCKERDIR: "/media/dockerdir"
-DATADIR: "/mnt/data" "
+DOCKERDIR: "/home/{{ bootstrap_admin_user }}/docker"
+DATADIR: "/mnt/data"
 HOSTNAME: "udms"
 
 # Traefik Role Variables
@@ -51,13 +51,13 @@ use_staging: false  # Set to true to use staging certificates
 reset_acme: false  # Set to true to reset the acme.json file
 reset_logs: false  # Set to true to reset the logs
 compose_files:
-  - docker-compose.networks.yml
-  - docker-compose.secrets.yml
   - docker-compose.socket-proxy.yml
   - docker-compose.traefik.yml
   - docker-compose.portainer.yml
-  - docker-compose.gamepanel.yml
+#  - docker-compose.gamepanel.yml
   - docker-compose.cloudflare-ddns.yml
+  - docker-compose.authentik.yml
+  - docker-compose.it-tools.yml
 
 # Game Panel Role Variables
 gamepanel_db_name: panel
@@ -79,3 +79,7 @@ GAME_DB_NAME: game
 GAME_DB_USER: game
 GAME_DB_PASSWORD: gamepass
 GAME_DB_ROOT_PASSWORD: rootpass
+
+
+## authentik
+reset_authentik: false

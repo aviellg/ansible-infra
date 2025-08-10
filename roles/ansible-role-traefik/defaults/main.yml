@@ -19,11 +19,10 @@ use_staging: false  # Set to true to use staging certificates
 reset_acme: false  # Set to true to reset the acme.json file
 reset_logs: false  # Set to true to reset the logs
 compose_files:
-  - docker-compose.networks.yml
-  - docker-compose.secrets.yml
   - docker-compose.socket-proxy.yml
   - docker-compose.traefik.yml
   - docker-compose.portainer.yml
+  - docker-compose.authentik.yml
 
 ### gamepanel
 gamepanel_db_name: panel
@@ -45,3 +44,10 @@ GAME_DB_NAME: game
 GAME_DB_USER: game
 GAME_DB_PASSWORD: gamepass
 GAME_DB_ROOT_PASSWORD: rootpass
+
+##authentik
+AUTHENTIK_POSTGRESQL__USER: authentik
+AUTHENTIK_POSTGRESQL__PASSWORD: authentik!
+AUTHENTIK_POSTGRESQL__NAME: authentik
+AUTHENTIK_SECRET_KEY: Superseceretkey1234567890
+reset_authentik: false

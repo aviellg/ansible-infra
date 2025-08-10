@@ -4,6 +4,13 @@ services:
     image: oznu/cloudflare-ddns:latest
     restart: always
     environment:
-      - API_KEY={{cloudflare_dns_api_token}}
-      - ZONE={{DOMAINNAME_1}}
+      - API_KEY_FILE=/run/secrets/cf_dns_api_token
+      - ZONE=$DOMAINNAME_1
       - PROXIED=true
+    secrets:
+      - cf_dns_api_token
+
+
+secrets:
+  cf_dns_api_token:
+    file: $DOCKERDIR/secrets/cf_dns_api_token

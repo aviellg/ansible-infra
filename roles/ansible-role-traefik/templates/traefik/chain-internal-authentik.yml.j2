@@ -1,0 +1,9 @@
+http:
+  middlewares:
+    chain-external-authentik:
+      chain:
+        middlewares:
+          - middlewares-ip-whitelist
+          - middlewares-rate-limit
+          - middlewares-secure-headers
+          - middlewares-authentik
