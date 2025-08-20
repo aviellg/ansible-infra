@@ -51,3 +51,7 @@ AUTHENTIK_POSTGRESQL__PASSWORD: authentik!
 AUTHENTIK_POSTGRESQL__NAME: authentik
 AUTHENTIK_SECRET_KEY: Superseceretkey1234567890
 reset_authentik: false
+
+##nextcloud
+nextcloud_db_root_password: nextcloud_root_password
+nextcloud_db_password: nextcloud_password

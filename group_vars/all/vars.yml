@@ -58,6 +58,8 @@ compose_files:
   - docker-compose.cloudflare-ddns.yml
   - docker-compose.authentik.yml
   - docker-compose.it-tools.yml
+  - docker-compose.nextcloud.yml
+  - docker-compose.kasm.yml
 
 # Game Panel Role Variables
 gamepanel_db_name: panel

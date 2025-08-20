@@ -291,6 +291,22 @@
         mode: '0600'
       tags: secrets_file
 
+- name: nextcloud folders 
+  block:  
+    - name: Create nextcloud directories with correct permissions
+      become: true
+      file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default(bootstrap_admin_user) }}"
+        group: "{{ item.group | default(bootstrap_admin_user) }}"
+        mode: "{{ item.mode | default('0755') }}"
+      loop:
+        - { path: "{{DOCKERDIR}}/appdata/nextcloud/config", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/nextcloud/data", mode: "0755" }
+      tags:
+        - directories
+
 - name: start Docker Compose stack
   become: true
   community.docker.docker_compose_v2:

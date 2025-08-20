@@ -22,7 +22,7 @@ services:
       - --api=true
       - --api.dashboard=true
       # - --api.insecure=true
-      #- --serversTransport.insecureSkipVerify=true
+      - --serversTransport.insecureSkipVerify=true #ignore internal tls error in network 
       # Allow these IPs to set the X-Forwarded-* headers - Cloudflare IPs: https://www.cloudflare.com/ips/
       - --entrypoints.websecure.forwardedHeaders.trustedIPs=$CLOUDFLARE_IPS,$LOCAL_IPS
       - --log=true
