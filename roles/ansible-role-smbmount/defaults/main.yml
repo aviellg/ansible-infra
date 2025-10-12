@@ -1,4 +1,15 @@
+# defaults file for ansible-role-smbmount
+
+# SMB settings
+smb_mount_enabled: true
 smb_username: autoadmin
 smb_password: "password"
 smb_server_path: "192.168.14.65/workgroup"
-# Add other SMB mount variables as needed
+smb_mount_point: "/mnt/data"
+
+# NFS settings
+nfs_mount_enabled: false
+nfs_server_path: ""
+nfs_mount_point: "/mnt/nfs"
+nfs_opts: "-fstype=nfs4,rw,soft,timeo=300,retrans=2"
+nfs_domain: ""

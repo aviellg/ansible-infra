@@ -25,13 +25,13 @@ services:
       - "traefik.http.routers.kasm-setup-rtr.entrypoints=websecure"
       - "traefik.http.routers.kasm-setup-rtr.rule=Host(`setup-kasm.${DOMAINNAME_1}`)"
       - "traefik.http.routers.kasm-setup-rtr.tls.certresolver=dns-cloudflare"
-      - "traefik.http.routers.kasm-setup-rtr.middlewares=chain-internal-auth@file"
+      - "traefik.http.routers.kasm-setup-rtr.middlewares=chain-no-auth@file"
       - "traefik.http.routers.kasm-setup-rtr.service=kasm-setup-svc"
+      - "traefik.http.services.kasm-setup-svc.loadBalancer.serversTransport=skipverifytransport@file"
 
       # 🔐 Internal Setup Service (HTTPS with TLS skip)
       - "traefik.http.services.kasm-setup-svc.loadbalancer.server.port=3000"
       - "traefik.http.services.kasm-setup-svc.loadbalancer.server.scheme=https"
-      - "traefik.http.services.kasm-setup-svc.loadbalancer.server.skipVerify=true"
     
       # 🚀 Main Router (Port 443)
       - "traefik.http.routers.kasm-main-rtr.entrypoints=websecure"
@@ -41,4 +41,12 @@ services:
       - "traefik.http.routers.kasm-main-rtr.middlewares=chain-external-authentik@file"
       - "traefik.http.routers.kasm-main-rtr.service=kasm-main-svc"
       - "traefik.http.services.kasm-main-svc.loadbalancer.server.port=443"
+      - "traefik.http.services.kasm-main-svc.loadbalancer.server.scheme=https"
+      - "traefik.http.services.kasm-main-svc.loadBalancer.serversTransport=skipverifytransport@file"
+
+
     restart: unless-stopped
+
+networks:
+  t3_proxy:
+    external: true

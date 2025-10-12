@@ -1,4 +1,9 @@
-    - name: Restart autof
-      service:
-        name: autofs
-        state: restarted
+- name: Restart autofs
+  service:
+    name: autofs
+    state: restarted
+
+- name: Restart idmapd
+  service:
+    name: "{{ 'idmapd' if ansible_os_family == 'Debian' else 'rpcidmapd' }}"
+    state: restarted

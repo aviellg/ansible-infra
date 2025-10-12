@@ -36,4 +36,9 @@
 # precedence.
 #
 +auto.master
-/- /etc/auto.smb.shares --timeout 15 browse
+{% if smb_mount_enabled %}
+{{ smb_mount_point }} /etc/auto.smb.shares --timeout=300
+{% endif %}
+{% if nfs_mount_enabled %}
+{{ nfs_mount_point }} /etc/auto.nfs.shares --timeout=300
+{% endif %}

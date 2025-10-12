@@ -1,11 +1,25 @@
-
-- name: Install autofs and cifs-utils
+- name: Install autofs and other required packages
   apt:
-    name:
-      - autofs
-      - cifs-utils
+    name: "{{ packages_to_install }}"
     state: present
-  notify: Restart autof
+  vars:
+    smb_packages: "{{ (smb_mount_enabled | ternary(['cifs-utils'], [])) }}"
+    nfs_packages: "{{ (nfs_mount_enabled | ternary(['nfs-common'], [])) }}"
+    packages_to_install: "{{ ['autofs'] + smb_packages + nfs_packages }}"
+  notify: Restart autofs
+  when: ansible_os_family == 'Debian'
+
+- name: Install autofs and other required packages (RedHat)
+  yum:
+    name: "{{ packages_to_install }}"
+    state: present
+  vars:
+    smb_packages: "{{ (smb_mount_enabled | ternary(['cifs-utils'], [])) }}"
+    nfs_packages: "{{ (nfs_mount_enabled | ternary(['nfs-utils'], [])) }}"
+    packages_to_install: "{{ ['autofs'] + smb_packages + nfs_packages }}"
+  notify: Restart autofs
+  when: ansible_os_family == 'RedHat'
+
 - name: Template auto.master to /etc
   template:
     src: auto.master
@@ -13,15 +27,53 @@
     owner: root
     group: root
     mode: '0644'
-  notify: Restart autof
+  notify: Restart autofs
+
 - name: Template auto.smb.shares to /etc
   template:
     src: auto.smb.shares
-    dest: /etc/auto.smb.shares
+    dest: "/etc/auto.smb.shares"
     owner: root
     group: root
     mode: '0644'
-  notify: Restart autof
+  notify: Restart autofs
+  when: smb_mount_enabled
+
+- name: Template auto.nfs.shares to /etc
+  template:
+    src: auto.nfs.shares
+    dest: "/etc/auto.nfs.shares"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart autofs
+  when: nfs_mount_enabled
+
+- name: Configure NFSv4 domain
+  template:
+    src: idmapd.conf.j2
+    dest: /etc/idmapd.conf
+    owner: root
+    group: root
+    mode: '0644'
+  when: nfs_mount_enabled and nfs_domain | length > 0
+  notify: Restart idmapd
+
+- name: Enable nfs-client.target for Debian family
+  systemd:
+    name: nfs-client.target
+    enabled: yes
+  when: ansible_os_family == 'Debian' and nfs_mount_enabled
+
+- name: Ensure idmapd service is running
+  service:
+    name: "{{ idmapd_service_name }}"
+    state: started
+    enabled: yes
+  vars:
+    idmapd_service_name: "{{ 'idmapd' if ansible_os_family == 'Debian' else 'rpcidmapd' }}"
+  when: nfs_mount_enabled and nfs_domain | length > 0
+
 - name: Template credentials file to /etc
   template:
     src: .credentials.txt
@@ -29,18 +81,32 @@
     owner: root
     group: root
     mode: '0600'
-  notify: Restart autof
+  notify: Restart autofs
+  when: smb_mount_enabled
+
 - name: Create mount directory
   file:
-    path: /mnt/data
+    path: "{{ item }}"
     state: directory
     owner: root
     group: root
     mode: '0755'
-  notify: Restart autof
-- name: List contents of /mnt/data
-  command: ls /mnt/data
-  register: ls_outpu
-- name: Show /mnt/data contents
+  loop:
+    - "{{ smb_mount_point | default(omit) }}"
+    - "{{ nfs_mount_point | default(omit) }}"
+  when: item is defined
+  notify: Restart autofs
+
+- name: List contents of mount points
+  command: "ls {{ item }}"
+  register: ls_output
+  loop:
+    - "{{ smb_mount_point | default(omit) }}"
+    - "{{ nfs_mount_point | default(omit) }}"
+  when: item is defined
+  changed_when: false
+  check_mode: no
+
+- name: Show mount point contents
   debug:
-    var: ls_output.stdout
+    var: ls_output.results
