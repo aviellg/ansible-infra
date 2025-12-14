@@ -1,0 +1,8 @@
+[Unit]
+Description=Homelab Backup Job
+After=network-online.target autofs.service
+Wants=network-online.target autofs.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/backup.sh

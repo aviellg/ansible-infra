@@ -24,33 +24,16 @@ bootstrap_install_list:
   
 bootstrap_admin_user: autoadmin
 
-# defaults file for ansible-role-smbmount
-
-# SMB settings
-smb_mount_enabled: false
-smb_username: autoadmin
-smb_password: "password"
-smb_server_path: "192.168.14.65/workgroup"
-smb_mount_point: "/mnt/data"
-
-# NFS settings
-nfs_mount_enabled: true
-nfs_server_path: "192.168.14.65:/mnt/bigdisk/Appdata"
-nfs_mount_point: "/mnt/nfs"
-nfs_opts: "-fstype=nfs4,rw,soft,timeo=300,retrans=2"
-nfs_domain: "homelab.local"
-
-
 # Docker Role Variables
 PUID: 1000
 PGID: 1000
 TZ: "Asia/Jerusalem"
 USERDIR: "/home/{{ bootstrap_admin_user }}"
 DOCKERDIR: "/home/{{ bootstrap_admin_user }}/docker"
-DATADIR: "/mnt/data"
+DATADIR: "/media/workgroup"
 HOSTNAME: "udms"
 
-# Traefik Role Variables
+# apps Role Variables
 traefik_version: v2.5.4
 traefik_data_folder: "/home/{{ bootstrap_admin_user }}/traefik"
 DOMAINNAME_1: "{{ vault_DOMAINNAME_1 }}"
@@ -73,17 +56,27 @@ compose_files:
   - docker-compose.nextcloud.yml
   - docker-compose.kasm.yml
 
+  ## workgroup SMB mount
+workgroup_smb_share: //192.168.14.65/workgroup
+workgroup_smb_mountpoint: /media/workgroup # This should be the base directory for autofs
+workgroup_smb_credentials_file: /etc/auto.workgroupcredentials
+workgroup_smb_username: "{{ vault_workgroup_smb_username }}"
+workgroup_smb_password: "{{ vault_workgroup_smb_password }}"
+
+## authentik
+reset_authentik: false
+
 # Game Panel Role Variables
 gamepanel_db_name: panel
 gamepanel_db_user: pterodactyl
-gamepanel_db_password: pterodactyl!
-gamepanel_db_root_password: pterodactyl!!
+gamepanel_db_password: "{{ vault_gamepanel_db_password }}"
+gamepanel_db_root_password: "{{ vault_gamepanel_db_root_password }}"
 GAMEPANEL_TIMEZONE: Asia/Jerusalem
 GAMEPANEL_DOMAIN: "panel.{{ DOMAINNAME_1 }}"
 GAMEPANEL_EMAIL: "{{ vault_GAMEPANEL_EMAIL }}"
 GAMEPANEL_MAIL_HOST: "mail.{{ DOMAINNAME_1 }}"
 GAMEPANEL_MAIL_PORT: 587
-GAMEPANEL_MAIL_PASSWORD: REPLACE_WITH_YOUR_EMAIL_PASSWORD
+GAMEPANEL_MAIL_PASSWORD: "{{ vault_GAMEPANEL_MAIL_PASSWORD }}"
 GAMEPANEL_WINGS_DOMAIN: "wings0.{{ DOMAINNAME_1 }}"
 GAMEPANEL_UID: "1000"
 GAMEPANEL_GID: "1000"
@@ -91,9 +84,32 @@ GAMEPANEL_WINGS_USER: pterodactyl
 GAMEPANEL_WINGS_SUBNET: "172.50.0.0/16"
 GAME_DB_NAME: game
 GAME_DB_USER: game
-GAME_DB_PASSWORD: gamepass
-GAME_DB_ROOT_PASSWORD: rootpass
+GAME_DB_PASSWORD: "{{ vault_GAME_DB_PASSWORD }}"
+GAME_DB_ROOT_PASSWORD: "{{ vault_GAME_DB_ROOT_PASSWORD }}"
 
 
-## authentik
-reset_authentik: false
+# Backup Role Variables
+backup_restic_repo: "{{ backup_smb_mountpoint }}/restic-repo" # Using a subfolder in the mount for the repo
+backup_restic_password_file: /root/.restic_pass
+backup_restic_password: "{{ vault_backup_restic_password }}"
+backup_paths:
+  - "{{ DOCKERDIR }}"
+backup_retention_policy: "--keep-daily 7 --keep-weekly 4 --keep-monthly 6"
+backup_force: false
+
+backup_smb_share: //192.168.14.65/appdata
+backup_smb_mountpoint: /media/truenas # This should be the base directory for autofs
+backup_smb_credentials_file: /etc/auto.credentials
+backup_smb_username: autoadmin
+backup_smb_password: "{{ vault_backup_smb_password }}"
+
+# Nextcloud Role Variables
+nextcloud_db_root_password: "{{ vault_nextcloud_db_root_password }}"
+nextcloud_db_password: "{{ vault_nextcloud_db_password }}"
+nextcloud_admin_user: "{{ vault_nextcloud_admin_user }}"
+nextcloud_admin_password: "{{ vault_nextcloud_admin_password }}"
+nextcloud_trusted_domain: "nextcloud.{{ DOMAINNAME_1 }}"
+nextcloud_update: false # Set to true to enable Nextcloud update on container startup
+trusted_proxies: 192.168.90.254 traefik # Add any additional trusted proxies here
+nextcloud_reset: true
+

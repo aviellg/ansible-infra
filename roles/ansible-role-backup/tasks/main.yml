@@ -1,0 +1,72 @@
+- name: Ensure cifs-utils is installed
+  ansible.builtin.package:
+    name: "{{ 'cifs-utils' if ansible_os_family == 'Debian' else 'samba-client' }}"
+    state: present
+
+- name: create and ensure mountpoint parent directory exists  
+  become: true
+  ansible.builtin.file:
+    path: "{{ workgroup_smb_mountpoint | dirname }}"
+    state: directory
+
+- name: Create SMB credentials file
+  become: true
+  template:
+    src: templates/credentials.j2
+    dest: "{{ backup_smb_credentials_file }}"
+    mode: '0600'
+  when: backup_smb_credentials_file is defined
+
+- name: Create restic password file
+  become: true
+  ansible.builtin.copy:
+    content: "{{ backup_restic_password }}"
+    dest: "{{ backup_restic_password_file }}"
+    owner: root
+    group: root
+    mode: '0400'
+
+- name: Ensure SMB share is mounted via fstab
+  become: true
+  ansible.posix.mount:
+    src: "{{ backup_smb_share }}"
+    path: "{{ backup_smb_mountpoint }}"
+    fstype: cifs
+    opts: "credentials={{ backup_smb_credentials_file }},vers=3.0,_netdev,nofail"
+    state: present
+
+- name: Initialize restic repository if it does not exist
+  become: true
+  ansible.builtin.command:
+    cmd: "restic init -r {{ backup_restic_repo }} --password-file {{ backup_restic_password_file }}"
+    creates: "{{ backup_restic_repo }}/config"
+  environment:
+    RESTIC_PASSWORD_FILE: "{{ backup_restic_password_file }}"
+
+- name: Install backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: /usr/local/bin/backup.sh
+    mode: '0755'
+
+- name: Install systemd service
+  ansible.builtin.template:
+    src: backup.service.j2
+    dest: /etc/systemd/system/backup.service
+
+- name: Install systemd timer
+  ansible.builtin.template:
+    src: backup.timer.j2
+    dest: /etc/systemd/system/backup.timer
+
+- name: Enable and start timer
+  ansible.builtin.systemd:
+    name: backup.timer
+    enabled: true
+    state: started
+
+- name: Run backup immediately if forced
+  ansible.builtin.systemd:
+    name: backup.service
+    state: started
+  when: backup_force | bool

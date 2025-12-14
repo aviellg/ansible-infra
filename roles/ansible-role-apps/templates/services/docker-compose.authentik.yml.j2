@@ -14,7 +14,7 @@ services:
       retries: 5
       timeout: 5s
     volumes:
-      - ${DOCKERDIR}/appdata/authentik/database:/var/lib/postgresql/data
+      - {{DOCKERDIR}}/appdata/authentik/database:/var/lib/postgresql/data
     environment:
       POSTGRES_PASSWORD: $AUTHENTIK_POSTGRESQL__PASSWORD
       POSTGRES_USER: $AUTHENTIK_POSTGRESQL__USER
@@ -36,7 +36,7 @@ services:
       retries: 5
       timeout: 3s
     volumes:
-      - ${DOCKERDIR}/appdata/authentik/redis:/data
+      - {{DOCKERDIR}}/appdata/authentik/redis:/data
     networks:
       - authentik-internal
   server:
@@ -54,8 +54,8 @@ services:
       AUTHENTIK_POSTGRESQL__NAME: $AUTHENTIK_POSTGRESQL__NAME
       AUTHENTIK_POSTGRESQL__PASSWORD: $AUTHENTIK_POSTGRESQL__PASSWORD
     volumes:
-      - ${DOCKERDIR}/appdata/authentik/media:/media
-      - ${DOCKERDIR}/appdata/authentik/custom-templates:/templates
+      - {{DOCKERDIR}}/appdata/authentik/media:/media
+      - {{DOCKERDIR}}/appdata/authentik/custom-templates:/templates
     networks:
       - authentik-internal
       - t3_proxy
@@ -98,9 +98,9 @@ services:
     user: $PUID:$PGID
     volumes:
     #  - /var/run/docker.sock:/var/run/docker.sock
-      - ${DOCKERDIR}/appdata/authentik/media:/media
-      - ${DOCKERDIR}/appdata/authentik/certs:/certs
-      - ${DOCKERDIR}/appdata/authentik/custom-templates:/templates
+      - {{DOCKERDIR}}/appdata/authentik/media:/media
+      - {{DOCKERDIR}}/appdata/authentik/certs:/certs
+      - {{DOCKERDIR}}/appdata/authentik/custom-templates:/templates
     networks:
       - authentik-internal
       - socket_proxy

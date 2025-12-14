@@ -1,0 +1,40 @@
+#!/bin/bash
+set -e
+
+function cleanup {
+  if [ -f /tmp/containers.before ]; then
+    echo "Restarting containers that were running before the backup..."
+    if [ -s /tmp/containers.before ]; then
+        while read -r c; do
+            docker start "$c"
+        done < /tmp/containers.before
+    fi
+    rm /tmp/containers.before
+  fi
+}
+
+trap cleanup EXIT
+
+# Attempt to mount all filesystems in fstab, like our backup share
+mount -a
+
+RUNNING=$(docker ps -q)
+
+if [ -n "$RUNNING" ]; then
+  echo "Stopping running containers..."
+  echo "$RUNNING" > /tmp/containers.before
+  docker stop $RUNNING
+else
+  # Create an empty file so the trap doesn't fail if it doesn't exist
+  touch /tmp/containers.before
+fi
+
+restic -r {{ backup_restic_repo }} \
+  --password-file {{ backup_restic_password_file }} \
+  backup {{ backup_paths | join(' ') }}
+
+restic -r {{ backup_restic_repo }} \
+  --password-file {{ backup_restic_password_file }} \
+  forget {{ backup_retention_policy }} --prune
+
+# The trap will handle restarting containers

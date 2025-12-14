@@ -1,0 +1,64 @@
+services:
+  nextcloud-db:
+    container_name: nextcloud-db
+    networks:
+      - nextcloud-internal
+    image: mariadb:10.6
+    restart: always
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+    volumes:
+      - {{DOCKERDIR}}/appdata/nextcloud/db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD={{ nextcloud_db_root_password }}
+      - MYSQL_PASSWORD={{ nextcloud_db_password }}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+
+  nextcloud-app:
+    container_name: nextcloud-app
+    restart: always
+    image: nextcloud:apache # This is the container image used. You can switch to ghcr.io/nextcloud-releases/all-in-one:beta if you want to help testing new releases. See
+    links:
+      - nextcloud-db
+    networks:
+      - nextcloud-internal
+      - t3_proxy
+    volumes:
+      - {{DOCKERDIR}}/appdata/nextcloud/config:/var/www/html
+      - {{DOCKERDIR}}/appdata/nextcloud/data:/mnt/data
+      - {{DATADIR}}:/mnt/shared
+    environment:
+      - MYSQL_PASSWORD={{ nextcloud_db_password }}
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_HOST=nextcloud-db
+      - NEXTCLOUD_ADMIN_USER={{ nextcloud_admin_user }}
+      - NEXTCLOUD_ADMIN_PASSWORD={{ nextcloud_admin_password }}
+      - NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domain }}
+      - NEXTCLOUD_UPDATE={{ nextcloud_update }}
+      - NEXTCLOUD_INIT_HTACCESS={{ nextcloud_update }}
+      - PHP_MEMORY_LIMIT=512M
+      - UPLOAD_LIMIT=20G
+      - APACHE_DISABLE_REWRITE_IP=1
+      - TRUSTED_PROXIES=192.168.90.0/24
+      - OVERWRITEPROTOCOL=https
+      - OVERWRITECLIURL=https://nextcloud.{{ DOMAINNAME_1 }}
+
+    labels:
+      - "traefik.enable=true"
+      # HTTP Routers
+      - "traefik.http.routers.nextcloud-rtr.entrypoints=websecure"
+      - "traefik.http.routers.nextcloud-rtr.rule=Host(`nextcloud.{{ DOMAINNAME_1 }}`)"
+      # Middlewares
+      - "traefik.http.routers.nextcloud-rtr.middlewares=chain-no-auth@file"
+      # HTTP Services
+      - "traefik.http.routers.nextcloud-rtr.service=nextcloud-svc"
+      - "traefik.http.services.nextcloud-svc.loadbalancer.server.port=80"
+      - "traefik.http.services.nextcloud-svc.loadbalancer.server.scheme=http"
+
+
+networks:
+  nextcloud-internal:
+    driver: bridge
+  t3_proxy:
+    external: true

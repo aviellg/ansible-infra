@@ -1,0 +1,30 @@
+services:
+  n8n:
+    container_name: n8n
+    image: docker.n8n.io/n8nio/n8n
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    networks:
+      - t3_proxy
+    environment:
+      - TZ=$TZ
+    labels:
+      - "traefik.enable=true"
+      # HTTP Routers
+      - "traefik.http.routers.n8n-rtr.entrypoints=websecure"
+      - "traefik.http.routers.n8n-rtr.rule=Host(`n8n.$DOMAINNAME_1`)"
+      # Middlewares
+      - "traefik.http.routers.n8n-rtr.middlewares=chain-external-authentik@file"
+      # HTTP Services
+      - "traefik.http.routers.n8n-rtr.service=n8n-svc"
+      - "traefik.http.services.n8n-svc.loadbalancer.server.port=5678"
+
+volumes:
+  n8n_data:
+
+networks:
+  t3_proxy:
+    external: true

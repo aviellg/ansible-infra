@@ -1,1 +1,0 @@
-* -fstype=cifs,rw,credentials=/etc/.credentials.txt,noperm,dir_mode=0777,file_mode=0777,mfsymlinks ://{{ smb_server_path }}/&

@@ -42,40 +42,40 @@
     - log_dirs
     - secrets_dir
 
-- name: ACL for docker directories
-  block:
-    - name: Ensure ACL package is installed
-      become: true
-      apt:
-        name: acl
-        state: present
-        update_cache: yes
-
-    - name: Ensure docker root directory exists
-      become: true
-      file:
-        path: "{{ DOCKERDIR }}/appdata"
-        state: directory
-        owner: "{{ bootstrap_admin_user }}"
-        group: "{{ bootstrap_admin_user }}"
-        mode: '0775'
-
-    - name: Set ACLs for docker group and bootstrap user (default and non-default)
-      become: true
-      ansible.posix.acl:
-        path: "{{ DOCKERDIR }}/appdata"
-        entity: "{{ item.entity }}"
-        etype: "{{ item.etype }}"
-        permissions: rwx
-        default: "{{ item.default | default(false) }}"
-        recursive: yes
-        state: present
-      loop:
-        - { entity: "{{ bootstrap_admin_user }}", etype: "user", default: true }
-        - { entity: "{{ bootstrap_admin_user }}", etype: "user", default: false }
-        - { entity: "docker", etype: "group", default: true }
-        - { entity: "docker", etype: "group", default: false }
-
+#- name: ACL for docker directories
+#  block:
+#    - name: Ensure ACL package is installed
+#      become: true
+#      apt:
+#        name: acl
+#        state: present
+#        update_cache: yes
+#
+#    - name: Ensure docker root directory exists
+#      become: true
+#      file:
+#        path: "{{ DOCKERDIR }}/appdata"
+#        state: directory
+#        owner: "{{ bootstrap_admin_user }}"
+#        group: "{{ bootstrap_admin_user }}"
+#        mode: '0775'
+#
+#    - name: Set ACLs for docker group and bootstrap user (default and non-default)
+#      become: true
+#      ansible.posix.acl:
+#        path: "{{ DOCKERDIR }}/appdata"
+#        entity: "{{ item.entity }}"
+#        etype: "{{ item.etype }}"
+#        permissions: rwx
+#        default: "{{ item.default | default(false) }}"
+#        recursive: yes
+#        state: present
+#      loop:
+#        - { entity: "{{ bootstrap_admin_user }}", etype: "user", default: true }
+#        - { entity: "{{ bootstrap_admin_user }}", etype: "user", default: false }
+#        - { entity: "docker", etype: "group", default: true }
+#        - { entity: "docker", etype: "group", default: false }
+#
 - name: copy docker-compose files to docker directory (except .env files)
   become: true
   template:
@@ -83,7 +83,7 @@
     dest: "{{DOCKERDIR}}/{{ item | basename | regex_replace('.j2$', '') }}"
     owner: "{{ bootstrap_admin_user }}"
     group: "{{ bootstrap_admin_user }}"
-    mode: '0644'
+    mode: '0770'
   with_fileglob:
     - "{{ role_path }}/templates/services/*.j2"
   tags: compose_file
@@ -95,7 +95,7 @@
     dest: "/home/{{ bootstrap_admin_user }}/docker/.env"
     owner: root
     group: root
-    mode: '0600'
+    mode: '0640'
   with_fileglob:
     - "{{ role_path }}/templates/services/.env"
   tags: compose_file
@@ -291,8 +291,41 @@
         mode: '0600'
       tags: secrets_file
 
-- name: nextcloud folders 
-  block:  
+- name: nextcloud operations
+  block:
+    - name: Stop and remove Nextcloud compose stack (if present)
+      community.docker.docker_compose_v2:
+        project_src: "{{ DOCKERDIR }}"
+        files:
+          - "{{ DOCKERDIR }}/docker-compose.nextcloud.yml"
+        state: absent
+      when: nextcloud_reset | default(false)
+      ignore_errors: true
+      tags:
+        - nextcloud_reset
+
+    - name: Ensure any remaining Nextcloud containers are removed (best-effort)
+      community.docker.docker_container:
+        name: "{{ item }}"
+        state: absent
+        force_kill: true
+      loop:
+        - nextcloud-app
+        - nextcloud-db
+      when: nextcloud_reset | default(false)
+      ignore_errors: true
+      tags:
+        - nextcloud_reset
+
+    - name: Remove Nextcloud appdata directory
+      become: true
+      file:
+        path: "{{ DOCKERDIR }}/appdata/nextcloud"
+        state: absent
+      when: nextcloud_reset | default(false)
+      tags:
+        - nextcloud_reset
+
     - name: Create nextcloud directories with correct permissions
       become: true
       file:
@@ -300,12 +333,50 @@
         state: directory
         owner: "{{ item.owner | default(bootstrap_admin_user) }}"
         group: "{{ item.group | default(bootstrap_admin_user) }}"
-        mode: "{{ item.mode | default('0755') }}"
+        mode: "{{ item.mode | default('0775') }}"
       loop:
-        - { path: "{{DOCKERDIR}}/appdata/nextcloud/config", mode: "0755" }
-        - { path: "{{DOCKERDIR}}/appdata/nextcloud/data", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/nextcloud/config", mode: "0775" }
+        - { path: "{{DOCKERDIR}}/appdata/nextcloud/data", mode: "0775" }
+        - { path: "{{DOCKERDIR}}/appdata/nextcloud/db", mode: "0775" }
       tags:
         - directories
+  tags:
+    - nextcloud
+
+- name: mount smb share for media files in /media/workgroup
+  block:
+  - name: Ensure cifs-utils is installed
+    ansible.builtin.package:
+      name: "{{ 'cifs-utils' if ansible_os_family == 'Debian' else 'samba-client' }}"
+      state: present
+  
+  - name: create DATADIR parent directory if it doesn't exist  
+    become: true
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      owner: "{{ item.owner | default(bootstrap_admin_user) }}"
+      group: "{{ item.group | default(bootstrap_admin_user) }}"
+      mode: "{{ item.mode | default('0775') }}"
+    loop:
+      - { path: "{{DATADIR}}", mode: "0775" }
+
+  - name: Create SMB credentials file
+    become: true
+    template:
+      src: templates/smb/credentials.j2
+      dest: "{{ workgroup_smb_credentials_file }}"
+      mode: '0600'
+    when: workgroup_smb_credentials_file is defined
+  
+  - name: Ensure SMB share is mounted via fstab
+    become: true
+    ansible.posix.mount:
+      src: "{{ workgroup_smb_share }}"
+      path: "{{ DATADIR }}"
+      fstype: cifs
+      opts: "credentials={{ workgroup_smb_credentials_file }},vers=3.0,_netdev,nofail"
+      state: present
 
 - name: start Docker Compose stack
   become: true

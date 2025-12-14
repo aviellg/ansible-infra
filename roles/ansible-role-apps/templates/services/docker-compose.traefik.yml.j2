@@ -6,7 +6,7 @@ services:
       - no-new-privileges:true
     restart: unless-stopped
     networks:
-      t3_proxy:
+      t33_proxy:
         ipv4_address: 192.168.90.254 # You can specify a static IP
       socket_proxy:
     command: # CLI arguments
@@ -16,6 +16,7 @@ services:
       - --entrypoints.websecure.address=:443
       - --entrypoints.traefik.address=:8080
       - --entrypoints.websecure.http.tls=true
+      - --entryPoints.websecure.transport.respondingTimeouts.readTimeout=24h
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.web.http.redirections.entrypoint.permanent=true
@@ -36,7 +37,7 @@ services:
       # - --providers.docker.endpoint=unix:///var/run/docker.sock # Disable for Socket Proxy. Enable otherwise.
       - --providers.docker.endpoint=tcp://socket-proxy:2375 # Enable for Socket Proxy. Disable otherwise.
       - --providers.docker.exposedByDefault=false
-      - --providers.docker.network=t3_proxy 
+      - --providers.docker.network=traefik3_proxy 
       # - --providers.docker.swarmMode=false # Traefik v2 Swarm
       # - --providers.swarm.endpoint=tcp://127.0.0.1:2377 # Traefik v3 Swarm
       - --entrypoints.websecure.http.tls.options=tls-opts@file
@@ -91,8 +92,8 @@ services:
       # Middlewares
       - "traefik.http.routers.traefik-rtr.middlewares=chain-external-authentik@file"
 networks:
-  t3_proxy:
-    name: t3_proxy
+  traefik3_proxy:
+    name: traefik3_proxy
     driver: bridge
     ipam:
       config:
@@ -101,6 +102,6 @@ networks:
 
 secrets:
   basic_auth_credentials:
-    file: $DOCKERDIR/secrets/basic_auth_credentials
+    file: {{ DOCKERDIR }}/secrets/basic_auth_credentials
   cf_dns_api_token:
     file: $DOCKERDIR/secrets/cf_dns_api_token

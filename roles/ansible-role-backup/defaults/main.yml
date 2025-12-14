@@ -1,0 +1,14 @@
+backup_restic_repo: /mnt/truenas/backups/homelab
+backup_restic_password_file: /root/.restic_pass
+backup_paths:
+  - "{{ DOCKERDIR }}"
+backup_retention_policy: "--keep-daily 7 --keep-weekly 4 --keep-monthly 6"
+backup_force: false
+
+backup_smb_server: truenas
+backup_smb_share: backups/homelab
+backup_smb_mountpoint: /mnt/truenas/backups/homelab
+backup_smb_credentials_file: /root/.smbcredentials
+backup_smb_username: backupuser
+backup_smb_password: secret
+backup_autofs_timeout: 300

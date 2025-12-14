@@ -55,3 +55,5 @@ reset_authentik: false
 ##nextcloud
 nextcloud_db_root_password: nextcloud_root_password
 nextcloud_db_password: nextcloud_password
+nextcloud_admin_password: nextcloud1234!!
+nextcloud_reset: false
