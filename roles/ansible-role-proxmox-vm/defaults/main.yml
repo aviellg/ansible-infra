@@ -1,0 +1,46 @@
+---
+# defaults file for ansible-role-proxmox-vm
+
+# ==============================================================================
+# Global Proxmox Connection & Credentials
+# (These should be defined in group_vars/all or a global variables file)
+# ==============================================================================
+api_host: ""
+api_user: "root@pam"
+api_password: ""
+proxmox_ssh_user: "root"
+proxmox_ssh_pass: ""
+node: "pve"
+
+# Cloud-Init user credentials
+ciuser: "user"
+cipassword: "password"
+
+# ==============================================================================
+# VM Specific Information
+# (Define these per VM or for each role that requires a VM)
+# ==============================================================================
+vm_name: "app-server"
+vm_cores: 4
+vm_memory: 16384
+vm_disk_size: 120   # Disk size in GB for resize task
+force_recreate: false
+
+
+
+# Optional Network Settings
+# If vm_ip is left blank or undefined, DHCP will be used.
+vm_ip: ""           # E.g., "192.168.14.54"
+vm_subnet: ""       # E.g., "24" (or CIDR suffix)
+vm_gateway: ""      # E.g., "192.168.14.1"
+vm_dns: ""          # E.g., "192.168.14.6"
+
+# ==============================================================================
+# Template / OS Image Settings
+# ==============================================================================
+template_os_download_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
+template_os_name: "ubuntu-focal-template"
+template_os_version: "20.04"
+template_storage_pool: "local"
+vm_storage_pool: "local-lvm"
+pwdhash: "{{ 'cipassword' | password_hash }}"

@@ -1,0 +1,9 @@
+[local]
+localhost ansible_connection=local
+
+[proxmox_nodes]
+pve ansible_host=192.168.14.33 ansible_user=root ansible_password=22082208
+
+[all:children]
+local
+proxmox_nodes

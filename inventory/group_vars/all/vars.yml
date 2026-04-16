@@ -113,3 +113,18 @@ nextcloud_update: false # Set to true to enable Nextcloud update on container st
 trusted_proxies: 192.168.90.254 traefik # Add any additional trusted proxies here
 nextcloud_reset: true
 
+# ==============================================================================
+# Global Proxmox Connection & Credentials
+# (These should be defined in group_vars/all or a global variables file)
+# ==============================================================================
+api_host: "192.168.14.33"
+api_user: "root@pam"
+api_password: "22082208"
+proxmox_ssh_user: "root"
+proxmox_ssh_pass: "22082208"
+node: "pve"
+proxmox_host: "{{ api_host }}"
+
+# Cloud-Init user credentials
+ciuser: "user"
+cipassword: "password"

@@ -1,0 +1,25 @@
+vault_DOMAINNAME_1: gadka.net
+vault_http_username: aviellg
+vault_http_password: "3Ye%TnN55Aq!WU3Qp!ZY"
+vault_cloudflare_dns_api_token: 4nlTrmOQ65Qn3nVfJCjMLtVdQPn6kuP4egEL7DJj
+vault_smb_username: autoadmin
+vault_gamepanel_db_password: "pterodactyl!"
+vault_gamepanel_db_root_password: "pterodactyl!!"
+vault_GAMEPANEL_MAIL_PASSWORD: "REPLACE_WITH_YOUR_EMAIL_PASSWORD"
+vault_GAME_DB_PASSWORD: "gamepass"
+vault_GAME_DB_ROOT_PASSWORD: "rootpass"
+vault_backup_restic_password: "YOUR_RESTIC_PASSWORD_HERE"
+vault_backup_smb_password: "&#XiX6nZx33BH@MvN&Yb"
+vault_workgroup_smb_username: autoadmin
+vault_workgroup_smb_password: "&#XiX6nZx33BH@MvN&Yb"
+
+
+# Nextcloud Role Vault Variables
+vault_nextcloud_db_root_password: "nextcloudrootpass"
+vault_nextcloud_db_password: "nextcloudpass"
+vault_nextcloud_admin_user: admin
+vault_nextcloud_admin_password: "nextcloudadminpass"
+
+
+
+  

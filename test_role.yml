@@ -1,0 +1,24 @@
+---
+- hosts: localhost
+  gather_facts: false
+  roles:
+    - role: ansible-role-proxmox-vm
+  vars:
+    # ==============================================================================
+    # VM Specific Information
+    # (Define these per VM or for each role that requires a VM)
+    # ==============================================================================
+    vm_name: "app-server"
+    vm_cores: 4
+    vm_memory: 16384
+    vm_disk_size: 120   # Disk size in GB for resize task
+    force_recreate: true
+
+
+
+    # Optional Network Settings
+    # If vm_ip is left blank or undefined, DHCP will be used.
+    vm_ip: ""           # E.g., "192.168.14.54"
+    vm_subnet: ""       # E.g., "24" (or CIDR suffix)
+    vm_gateway: ""      # E.g., "192.168.14.1"
+    vm_dns: ""          # E.g., "192.168.14.6"
