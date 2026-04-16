@@ -1,0 +1,229 @@
+---
+# tasks file for ansible-role-proxmox-vm
+
+- name: Download Ubuntu cloud image to Proxmox storage
+  ansible.builtin.get_url:
+    url: "{{ template_os_download_url }}"
+    dest: "/var/lib/vz/template/qemu/{{ template_os_name }}-{{ template_os_version }}.img"
+    mode: '0644'
+  delegate_to: "{{ proxmox_host | default(api_host) }}"
+  vars:
+    ansible_connection: ssh
+    ansible_user: "{{ proxmox_ssh_user }}"
+    ansible_password: "{{ proxmox_ssh_pass }}"
+    ansible_become: true
+    ansible_become_method: sudo
+
+# ---------------------------------------------------------
+# INSTALL mkpasswd + HASH PASSWORD
+# ---------------------------------------------------------
+- name: Ensure mkpasswd is installed on Proxmox
+  ansible.builtin.apt:
+    name: whois
+    state: present
+  delegate_to: "{{ api_host }}"
+  become: true
+  vars:
+    ansible_connection: ssh
+    ansible_user: "{{ proxmox_ssh_user }}"
+    ansible_password: "{{ proxmox_ssh_pass }}"
+- name: Hash cloud-init password using mkpasswd
+  ansible.builtin.command: "mkpasswd -m sha-512 {{ cipassword }}"
+  register: pwdhash
+  changed_when: false
+  delegate_to: "{{ api_host }}"
+  become: true
+  vars:
+    ansible_connection: ssh
+    ansible_user: "{{ proxmox_ssh_user }}"
+    ansible_password: "{{ proxmox_ssh_pass }}"
+# ---------------------------------------------------------
+# CREATE CLOUD-INIT SNIPPET
+# ---------------------------------------------------------
+- name: Create Cloud-Init user-data for hostname and guest agent
+  ansible.builtin.copy:
+    dest: "/var/lib/vz/snippets/{{ vm_name }}-user.yaml"
+    mode: '0644'
+    content: |
+      #cloud-config
+      preserve_hostname: false
+      hostname: {{ vm_name }}
+      fqdn: {{ vm_name }}.local
+      users:
+        - name: {{ ciuser }}
+          sudo: ALL=(ALL) NOPASSWD:ALL
+          groups: users, admin
+          lock_passwd: false
+          passwd: "{{ pwdhash.stdout }}"
+      ssh_pwauth: true
+      chpasswd:
+        expire: false
+      packages:
+        - qemu-guest-agent
+        - cloud-initramfs-growroot
+      runcmd:
+        - systemctl enable qemu-guest-agent
+        - systemctl start qemu-guest-agent
+      growpart:
+        mode: auto
+        devices: ['/']
+        ignore_growroot_disabled: false
+  delegate_to: "{{ api_host }}"
+  become: true
+  vars:
+    ansible_connection: ssh
+    ansible_user: "{{ proxmox_ssh_user }}"
+    ansible_password: "{{ proxmox_ssh_pass }}"
+      
+
+- name: Delete VM if force recreate is true
+  community.proxmox.proxmox_kvm:
+    api_user: "{{ api_user }}"
+    api_password: "{{ api_password }}"
+    api_host: "{{ api_host }}"
+    name: "{{ vm_name }}"
+    node: "{{ node }}"
+    state: absent
+    agent: true
+    force: true
+  timeout: 100
+  when: force_recreate | default(false) | bool
+
+- name: Check if VM configuration requires updates (Check Mode)
+  community.proxmox.proxmox_kvm:
+    api_user: "{{ api_user }}"
+    api_password: "{{ api_password }}"
+    api_host: "{{ api_host }}"
+    name: "{{ vm_name }}"
+    cores: "{{ vm_cores }}"
+    cpu: host
+    memory: "{{ vm_memory }}"
+    net:
+      net0: 'model=virtio,bridge=vmbr0'
+    scsi:
+      scsi0: "{{ vm_storage_pool }}:0,iothread=1,discard=on,import-from=/var/lib/vz/template/qemu/{{ template_os_name }}-{{ template_os_version }}.img,format=raw"
+    ide:
+      ide2: '{{ vm_storage_pool }}:cloudinit'
+    cicustom: "user=local:snippets/{{ vm_name }}-user.yaml"
+    ciupgrade: true
+    node: "{{ node }}"
+    state: present
+    searchdomains: 'localdomain'
+    nameservers: >-
+      {{ [ vm_dns ] if vm_dns | default('') else ['8.8.8.8'] }}
+    kvm: true
+    scsihw: "virtio-scsi-single"
+    agent: true
+    vga: serial0
+    serial:
+      serial0: socket
+    ipconfig:
+      ipconfig0: "{{ 'ip=' ~ vm_ip ~ '/' ~ (vm_subnet | default('24')) ~ (',gw=' ~ vm_gateway if vm_gateway | default('') else '') if (vm_ip | default('') and vm_ip != 'dhcp') else 'ip=dhcp' }}"
+  check_mode: true
+  register: vm_check
+  when: not (force_recreate | default(false) | bool)
+
+- name: Notify if VM configuration differs
+  ansible.builtin.debug:
+    msg: "NOTE: The configuration for VM '{{ vm_name }}' differs from the requested state. Proxmox will attempt to apply the updates inline (e.g. CPU/RAM adjustments). If this breaks anything or you prefer a fresh environment, run with 'force_recreate: true'."
+  when: 
+    - not (force_recreate | default(false) | bool)
+    - vm_check is defined and vm_check.changed
+
+- name: VM creation using image
+  community.proxmox.proxmox_kvm:
+    api_user: "{{ api_user }}"
+    api_password: "{{ api_password }}"
+    api_host: "{{ api_host }}"
+    name: "{{ vm_name }}"
+    cores: "{{ vm_cores }}"
+    cpu: host
+    memory: "{{ vm_memory }}"
+    net:
+      net0: 'model=virtio,bridge=vmbr0'
+    scsi:
+      scsi0: "{{ vm_storage_pool }}:0,iothread=1,discard=on,import-from=/var/lib/vz/template/qemu/{{ template_os_name }}-{{ template_os_version }}.img,format=raw"
+    ide:
+      ide2: '{{ vm_storage_pool }}:cloudinit'
+    cicustom: "user=local:snippets/{{ vm_name }}-user.yaml"
+    ciupgrade: true
+    node: "{{ node }}"
+    state: present
+    searchdomains: 'localdomain'
+    nameservers: >-
+      {{ [ vm_dns ] if vm_dns | default('') else ['8.8.8.8'] }}
+    kvm: true
+    scsihw: "virtio-scsi-single"
+    agent: true
+    serial:
+      serial0: socket
+    ipconfig:
+      ipconfig0: "{{ 'ip=' ~ vm_ip ~ '/' ~ (vm_subnet | default('24')) ~ (',gw=' ~ vm_gateway if vm_gateway | default('') else '') if (vm_ip | default('') and vm_ip != 'dhcp') else 'ip=dhcp' }}"
+  register: vm
+
+- name: Start VM
+  community.proxmox.proxmox_kvm:
+    api_user: "{{ api_user }}"
+    api_password: "{{ api_password }}"
+    api_host: "{{ api_host }}"
+    vmid: "{{ vm.vmid }}"
+    state: started
+
+- name: Wait for Proxmox guest agent to respond
+  community.proxmox.proxmox_vm_info:
+    api_user: "{{ api_user }}"
+    api_password: "{{ api_password }}"
+    api_host: "{{ api_host }}"
+    vmid: "{{ vm.vmid }}"
+    config: current
+    network: true
+    node: "{{ node }}"
+  register: vm_net_info
+  until: >
+    vm_net_info.proxmox_vms is defined and
+    vm_net_info.proxmox_vms[0].config.agent is defined and
+    vm_net_info.proxmox_vms[0].config.agent | int == 1
+  retries: 20
+  delay: 10
+
+- name: Print VM info
+  ansible.builtin.debug:
+    msg: "{{ vm_net_info.proxmox_vms[0] }}"
+
+- name: Collect VM info
+  ansible.builtin.set_fact:
+    all_vm_info:
+      - name: "{{ vm_net_info.proxmox_vms[0].config.name }}"
+        vmid: "{{ vm_net_info.proxmox_vms[0].vmid }}"
+        address: >-
+          {{
+            vm_net_info.proxmox_vms[0].network
+            | selectattr('name','!=','lo')
+            | map(attribute='ip-addresses')
+            | map('selectattr', 'ip-address-type', 'equalto', 'ipv4')
+            | map('first')
+            | map(attribute='ip-address')
+            | first
+          }}
+
+- name: Grow the virtual machine existing disk
+  community.general.proxmox_disk:
+    api_host: "{{ api_host }}"
+    api_user: "{{ api_user }}"
+    api_password: "{{ api_password }}"
+    name: "{{ vm_name }}"
+    disk: scsi0
+    size: "{{ vm_disk_size }}G"
+    state: resized
+  register: resize_result
+  delay: 30
+
+- name: Restart VM to apply disk changes
+  community.proxmox.proxmox_kvm:
+    api_user: "{{ api_user }}"
+    api_password: "{{ api_password }}"
+    api_host: "{{ api_host }}"
+    vmid: "{{ vm.vmid }}"
+    node: "{{ node }}"
+    state: restarted
+  when: resize_result.changed

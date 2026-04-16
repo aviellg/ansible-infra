@@ -1,0 +1,212 @@
+---
+- name: Manage Proxmox VM lifecycle
+  hosts: localhost
+  gather_facts: false
+  vars:
+    vm_name: prod-app
+    vm_cores: 4
+    vm_memory: 16384
+    vm_disk_size: 120
+    vm_ip: "192.168.14.54"
+    vm_gateway: "192.168.14.1"
+    vm_dns: "192.168.14.6"
+    vm_subnet: 24
+    force_recreate: true
+    # Template/OS
+    template_os_download_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
+    template_os_name: "ubuntu-focal-template"
+    template_os_version: "20.04"
+    template_storage_pool: "local"
+    # Proxmox connection
+    api_host: 192.168.14.33
+    api_user: root@pam        # For API access
+    proxmox_ssh_user: root  
+    proxmox_ssh_pass: "22082208"     # For SSH access
+    api_password: "22082208"
+    node: pve
+    disk: "/var/lib/vz/template/qemu/{{ template_os_name }}-{{ template_os_version }}.img"
+    ciuser: aviellg
+    cipassword: "22082208"
+  tasks:
+
+#prep file for template
+    - name: Download Ubuntu cloud image to Proxmox storage
+      ansible.builtin.get_url:
+        url: "{{ template_os_download_url }}"
+        dest: "/var/lib/vz/template/qemu/{{ template_os_name }}-{{ template_os_version }}.img"
+        mode: '0644'
+      delegate_to: "{{ proxmox_host }}"
+      vars:
+        ansible_connection: ssh
+        ansible_user: "{{ proxmox_ssh_user }}"
+        ansible_password: "{{ proxmox_ssh_pass }}"
+        ansible_become: true
+        ansible_become_method: sudo
+    - name: Create Cloud-Init user-data for hostname and guest agent
+      ansible.builtin.copy:
+        dest: "/var/lib/vz/snippets/{{ vm_name }}-user.yaml"
+        content: |
+         #cloud-config
+         preserve_hostname: false
+         hostname: {{ vm_name }}
+         fqdn: {{ vm_name }}.local
+         
+         users:
+           - name: {{ ciuser }}
+             sudo: ALL=(ALL) NOPASSWD:ALL
+             groups: users, admin
+             lock_passwd: false
+             passwd: "{{ cipassword }}"
+
+         
+         ssh_pwauth: true
+         
+         packages:
+           - qemu-guest-agent
+           - cloud-initramfs-growroot
+         
+         runcmd:
+           - systemctl enable qemu-guest-agent
+           - systemctl start qemu-guest-agent
+         
+         growpart:
+           mode: auto
+           devices: ['/']
+           ignore_growroot_disabled: false
+    
+        mode: '0644'
+      delegate_to: "{{ proxmox_host }}"
+      vars:
+        ansible_connection: ssh
+        ansible_user: "{{ proxmox_ssh_user }}"
+        ansible_password: "{{ proxmox_ssh_pass }}"
+        ansible_become: true
+        ansible_become_method: sudo
+# tasks file for proxmox
+    - name: delete vm if force recreate is true
+      community.proxmox.proxmox_kvm:
+        api_user: "{{ api_user }}"
+        api_password: "{{ api_password }}"
+        api_host: "{{api_host}}"
+        name: "{{ vm_name }}"
+        node: "{{ node }}"
+        state: absent
+        agent: true
+        force: true
+      timeout: 100
+      when: force_recreate == true
+
+    - name: VM creation using image
+      community.proxmox.proxmox_kvm:
+        api_user: "{{ api_user }}"
+        api_password: "{{ api_password }}"
+        api_host: "{{api_host}}"
+        name: "{{ vm_name }}"
+        cores: "{{ vm_cores }}"
+        cpu: host
+        memory: "{{ vm_memory }}"
+        net:
+          net0: 'model=virtio,bridge=vmbr0'
+        scsi:
+          scsi0: "local-lvm:0,iothread=1,discard=on,import-from=/var/lib/vz/template/qemu/{{ template_os_name }}-{{ template_os_version }}.img,format=raw"
+        ide:
+          ide2: 'local-lvm:cloudinit'
+        cicustom: "user=local:snippets/{{ vm_name }}-user.yaml"
+        ciupgrade: true
+        node: "{{ node  }}"
+        state: present
+        searchdomains: 'localdomain'
+        nameservers:
+          - '8.8.8.8'
+        kvm: true
+        scsihw: "virtio-scsi-single"
+        agent: true
+        ipconfig:
+          ipconfig0: 'ip=dhcp'
+        agent: true
+      register: vm
+        
+    - name: Start VM
+      community.proxmox.proxmox_kvm:
+        api_user: "{{ api_user }}"
+        api_password: "{{ api_password }}"
+        api_host: "{{api_host}}"
+        vmid: "{{ vm.vmid }}"
+        state: started
+        
+    
+    # ---------------------------------------------------------
+    # Wait for VM guest agent to be ready
+    # ---------------------------------------------------------
+    - name: Wait for Proxmox guest agent to respond
+      community.proxmox.proxmox_vm_info:
+        api_user: "{{ api_user }}"
+        api_password: "{{ api_password }}"
+        api_host: "{{ api_host }}"
+        vmid: "{{ vm.vmid }}"
+        config: current
+        network: true
+        node: "{{ node }}"
+      register: vm_net_info
+      until: >
+        vm_net_info.proxmox_vms is defined and
+        vm_net_info.proxmox_vms[0].config.agent is defined and
+        vm_net_info.proxmox_vms[0].config.agent | int == 1
+      retries: 20
+      delay: 10
+      
+    
+    # ---------------------------------------------------------
+    # Debug full VM info
+    # ---------------------------------------------------------
+    - name: Print VM info
+      debug:
+        msg: "{{ vm_net_info.proxmox_vms[0] }}"
+    
+    # ---------------------------------------------------------
+    # Extract VM name, VMID, and IPv4 address
+    # ---------------------------------------------------------
+    - name: Collect VM info
+      set_fact:
+        all_vm_info:
+          - name: "{{ vm_net_info.proxmox_vms[0].config.name }}"
+            vmid: "{{ vm_net_info.proxmox_vms[0].vmid }}"
+            address: >-
+              {{
+                vm_net_info.proxmox_vms[0].network
+                | selectattr('name','!=','lo')
+                | map(attribute='ip-addresses')
+                | map('selectattr', 'ip-address-type', 'equalto', 'ipv4')
+                | map('first')
+                | map(attribute='ip-address')
+                | first
+              }}
+    
+    # ---------------------------------------------------------
+    # Resize disk if needed
+    # ---------------------------------------------------------
+    - name: Grow the virtual machine existing disk
+      community.general.proxmox_disk:
+        api_host: "{{ api_host }}"
+        api_user: "{{ api_user }}"
+        api_password: "{{ api_password }}"
+        name: "{{ vm_name }}"
+        disk: scsi0
+        size: 26G
+        state: resized
+      register: resize_result
+      delay: 30
+  
+#    ---------------------------------------------------------
+#    Restart VM only if disk was actually resized
+#    ---------------------------------------------------------
+    - name: Restart VM to apply disk changes
+      community.proxmox.proxmox_kvm:
+        api_user: "{{ api_user }}"
+        api_password: "{{ api_password }}"
+        api_host: "{{ api_host }}"
+        vmid: "{{ vm.vmid }}"
+        node: "{{ node }}"
+        state: restarted
+      when: resize_result.changed
+  
