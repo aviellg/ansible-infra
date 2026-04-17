@@ -1,30 +1,24 @@
-# Bootstrap Role Variables
-bootstrap_install_list:
-  - git
-  - htop
-  - sudo
-  - ca-certificates
-  - curl
-  - gnupg
-  - lsb-release
-  - ntp
-  - zip
-  - unzip
-  - apt-transport-https
-  - net-tools
-  - ncdu
-  - apache2-utils
-  - nano
-  - ufw
-  - neofetch
-  - python3-pip
-  - qemu-guest-agent
-  - aptitude
-  - acl
-  
-bootstrap_admin_user: autoadmin
+# ==============================================================================
+# Global Proxmox Connection & Credentials
+# (These should be defined in group_vars/all or a global variables file)
+# ==============================================================================
+api_host: "192.168.14.33"
+api_user: "root@pam"
+api_password: "{{ vault_proxmox_api_password }}"
+proxmox_ssh_user: "root"
+proxmox_ssh_pass: "{{ vault_proxmox_ssh_pass }}"
+node: "pve"
+proxmox_host: "{{ api_host }}"
+force_recreate: false
 
-# Docker Role Variables
+
+# Cloud-Init user credentials
+ciuser: "{{ bootstrap_admin_user }}"
+cipassword: "{{ vault_bootstrap_admin_password }}"
+
+# ==============================================================================
+# apps role variables
+# ==============================================================================
 PUID: 1000
 PGID: 1000
 TZ: "Asia/Jerusalem"
@@ -33,7 +27,7 @@ DOCKERDIR: "/home/{{ bootstrap_admin_user }}/docker"
 DATADIR: "/media/workgroup"
 HOSTNAME: "udms"
 
-# apps Role Variables
+# traefik variables
 traefik_version: v2.5.4
 traefik_data_folder: "/home/{{ bootstrap_admin_user }}/traefik"
 DOMAINNAME_1: "{{ vault_DOMAINNAME_1 }}"
@@ -56,12 +50,7 @@ compose_files:
   - docker-compose.nextcloud.yml
   - docker-compose.kasm.yml
 
-  ## workgroup SMB mount
-workgroup_smb_share: //192.168.14.65/workgroup
-workgroup_smb_mountpoint: /media/workgroup # This should be the base directory for autofs
-workgroup_smb_credentials_file: /etc/auto.workgroupcredentials
-workgroup_smb_username: "{{ vault_workgroup_smb_username }}"
-workgroup_smb_password: "{{ vault_workgroup_smb_password }}"
+
 
 ## authentik
 reset_authentik: false
@@ -87,6 +76,12 @@ GAME_DB_USER: game
 GAME_DB_PASSWORD: "{{ vault_GAME_DB_PASSWORD }}"
 GAME_DB_ROOT_PASSWORD: "{{ vault_GAME_DB_ROOT_PASSWORD }}"
 
+## workgroup\nextcloud SMB mount
+workgroup_smb_share: //192.168.14.65/workgroup
+workgroup_smb_mountpoint: /media/workgroup # This should be the base directory for autofs
+workgroup_smb_credentials_file: /etc/auto.workgroupcredentials
+workgroup_smb_username: "{{ vault_workgroup_smb_username }}"
+workgroup_smb_password: "{{ vault_workgroup_smb_password }}"
 
 # Backup Role Variables
 backup_restic_repo: "{{ backup_smb_mountpoint }}/restic-repo" # Using a subfolder in the mount for the repo
@@ -103,28 +98,4 @@ backup_smb_credentials_file: /etc/auto.credentials
 backup_smb_username: autoadmin
 backup_smb_password: "{{ vault_backup_smb_password }}"
 
-# Nextcloud Role Variables
-nextcloud_db_root_password: "{{ vault_nextcloud_db_root_password }}"
-nextcloud_db_password: "{{ vault_nextcloud_db_password }}"
-nextcloud_admin_user: "{{ vault_nextcloud_admin_user }}"
-nextcloud_admin_password: "{{ vault_nextcloud_admin_password }}"
-nextcloud_trusted_domain: "nextcloud.{{ DOMAINNAME_1 }}"
-nextcloud_update: false # Set to true to enable Nextcloud update on container startup
-trusted_proxies: 192.168.90.254 traefik # Add any additional trusted proxies here
-nextcloud_reset: true
 
-# ==============================================================================
-# Global Proxmox Connection & Credentials
-# (These should be defined in group_vars/all or a global variables file)
-# ==============================================================================
-api_host: "192.168.14.33"
-api_user: "root@pam"
-api_password: "22082208"
-proxmox_ssh_user: "root"
-proxmox_ssh_pass: "22082208"
-node: "pve"
-proxmox_host: "{{ api_host }}"
-
-# Cloud-Init user credentials
-ciuser: "user"
-cipassword: "password"

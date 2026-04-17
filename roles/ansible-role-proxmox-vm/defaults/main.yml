@@ -5,12 +5,13 @@
 # Global Proxmox Connection & Credentials
 # (These should be defined in group_vars/all or a global variables file)
 # ==============================================================================
-api_host: ""
+api_host: "{{ vault_api_host }}"
 api_user: "root@pam"
-api_password: ""
+api_password: "{{ vault_proxmox_api_password }}"
 proxmox_ssh_user: "root"
-proxmox_ssh_pass: ""
+proxmox_ssh_pass: "{{ vault_proxmox_ssh_pass }}"
 node: "pve"
+bootstrap_admin_user: "{{ vault_bootstrap_admin_user }}"
 
 # Cloud-Init user credentials
 ciuser: "user"

@@ -4,14 +4,30 @@
     name: ansible-role-proxmox-vm
   vars:
     vm_name: prod-app
-    vm_cores: 8
+    vm_cores: 4
     vm_memory: 16384  # 16 GB in MB
-    vm_disk_size: 120G
+    vm_disk_size: 120
     # Network
     vm_ip: "192.168.14.54"
     vm_gateway: "192.168.14.1"
     vm_dns: "192.168.14.6"
   tags: proxmox
+
+- name: prepare vm using setup role 
+  become: true
+  import_role:
+    name: ansible-role-setup
+  vars:
+    ansible_host: "{{ all_vm_info[0].address }}"
+    ansible_connection: ssh
+    ansible_user: "{{ bootstrap_admin_user }}"
+    ansible_password: "{{ vault_bootstrap_admin_password }}" 
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_become_pass: "{{ vault_bootstrap_admin_password }}"
+    ansible_python_interpreter: auto
+    ansible_ssh_extra_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+  tags: setup
 
 # ansible-role-traefik/tasks/main.yml
 - name: set uid and guid for bootstrap user 

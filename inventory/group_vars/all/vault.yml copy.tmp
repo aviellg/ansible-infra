@@ -1,4 +1,24 @@
-vault_DOMAINNAME_1: ******
-vault_http_username: ******
-vault_http_password: "******"
-vault_cloudflare_dns_api_token: ******
+#proxmox vault Variables
+vault_proxmox_api_password: "[PASSWORD]"
+vault_proxmox_ssh_pass: "[PASSWORD]"
+vault_bootstrap_admin_password: "[PASSWORD]"
+
+## app variables
+vault_DOMAINNAME_1: "example.net"
+vault_http_password: "[PASSWORD]"
+vault_http_username: "[PASSWORD]"
+vault_cloudflare_dns_api_token: "[ENCRYPTION_KEY]"
+## game panel
+vault_gamepanel_db_password: "[PASSWORD]"
+vault_gamepanel_db_root_password: "[PASSWORD]"
+vault_GAMEPANEL_EMAIL: "[EMAIL_ADDRESS]"
+vault_gamepanel_mail_password: "[PASSWORD]"
+vault_game_db_password: "[PASSWORD]"
+vault_game_db_root_password: "[PASSWORD]"
+## workgroup\nextcloud SMB mount
+vault_workgroup_smb_username: "autoadmin"
+vault_workgroup_smb_password: "[PASSWORD]"
+
+## backup role
+vault_backup_restic_password: "[PASSWORD]"
+vault_backup_smb_password: "[PASSWORD]"

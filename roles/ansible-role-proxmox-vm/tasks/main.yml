@@ -118,7 +118,7 @@
     serial:
       serial0: socket
     ipconfig:
-      ipconfig0: "{{ 'ip=' ~ vm_ip ~ '/' ~ (vm_subnet | default('24')) ~ (',gw=' ~ vm_gateway if vm_gateway | default('') else '') if (vm_ip | default('') and vm_ip != 'dhcp') else 'ip=dhcp' }}"
+      ipconfig0: "{{ 'ip=' ~ vm_ip ~ '/' ~ (vm_subnet | default('24', true)) ~ (',gw=' ~ vm_gateway if vm_gateway | default('', true) else '') if (vm_ip | default('', true) and vm_ip != 'dhcp') else 'ip=dhcp' }}"
   check_mode: true
   register: vm_check
   when: not (force_recreate | default(false) | bool)
@@ -158,7 +158,7 @@
     serial:
       serial0: socket
     ipconfig:
-      ipconfig0: "{{ 'ip=' ~ vm_ip ~ '/' ~ (vm_subnet | default('24')) ~ (',gw=' ~ vm_gateway if vm_gateway | default('') else '') if (vm_ip | default('') and vm_ip != 'dhcp') else 'ip=dhcp' }}"
+      ipconfig0: "{{ 'ip=' ~ vm_ip ~ '/' ~ (vm_subnet | default('24', true)) ~ (',gw=' ~ vm_gateway if vm_gateway | default('', true) else '') if (vm_ip | default('', true) and vm_ip != 'dhcp') else 'ip=dhcp' }}"
   register: vm
 
 - name: Start VM
@@ -217,6 +217,7 @@
     state: resized
   register: resize_result
   delay: 30
+  timeout: 60
 
 - name: Restart VM to apply disk changes
   community.proxmox.proxmox_kvm:
