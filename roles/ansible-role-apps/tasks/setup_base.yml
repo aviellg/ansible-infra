@@ -1,0 +1,98 @@
+---
+# Base prerequisites for the applications
+- name: set uid and guid for bootstrap user 
+  block:
+    - name: Get UID of the user
+      command: "id -u {{ bootstrap_admin_user }}"
+      register: uid_result
+      changed_when: false
+
+    - name: Get GID of the user
+      command: "id -g {{ bootstrap_admin_user }}"
+      register: gid_result
+      changed_when: false
+
+    - name: Set PUID and PGID variables
+      set_fact:
+        PUID: "{{ uid_result.stdout }}"
+        PGID: "{{ gid_result.stdout }}"
+
+- name: Allow HTTP traffic through firewall
+  become: true
+  ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+  tags: firewall
+
+- name: Create docker necessary directories with correct permissions
+  become: true
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default(bootstrap_admin_user) }}"
+    group: "{{ item.group | default(bootstrap_admin_user) }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop:
+    - { path: "{{DOCKERDIR}}/secrets", mode: "0700" }
+    - { path: "{{DOCKERDIR}}/logs/udms", mode: "0755" }
+    - { path: "{{DOCKERDIR}}/appdata", mode: "0775" }
+  tags:
+    - directories
+    - log_dirs
+    - secrets_dir
+
+- name: mount smb share for media files in /media/workgroup
+  block:
+  - name: Ensure cifs-utils is installed
+    ansible.builtin.package:
+      name: "{{ 'cifs-utils' if ansible_os_family == 'Debian' else 'samba-client' }}"
+      state: present
+  
+  - name: create DATADIR parent directory if it doesn't exist  
+    become: true
+    ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: directory
+      owner: "{{ item.owner | default(bootstrap_admin_user) }}"
+      group: "{{ item.group | default(bootstrap_admin_user) }}"
+      mode: "{{ item.mode | default('0775') }}"
+    loop:
+      - { path: "{{DATADIR}}", mode: "0775" }
+
+  - name: Create SMB credentials file
+    become: true
+    template:
+      src: templates/smb/credentials.j2
+      dest: "{{ workgroup_smb_credentials_file }}"
+      mode: '0600'
+    when: workgroup_smb_credentials_file is defined
+  
+  - name: Ensure SMB share is mounted via fstab
+    become: true
+    ansible.posix.mount:
+      src: "{{ workgroup_smb_share }}"
+      path: "{{ DATADIR }}"
+      fstype: cifs
+      opts: "credentials={{ workgroup_smb_credentials_file }},vers=3.0,_netdev,nofail"
+      state: present
+
+- name: Cleanup old traefik3_proxy network if it exists (to avoid subnet overlap)
+  become: true
+  community.docker.docker_network:
+    name: traefik3_proxy
+    state: absent
+  tags: docker_compose
+
+- name: Ensure required external Docker networks exist before compose stack
+  become: true
+  community.docker.docker_network:
+    name: "{{ item.name }}"
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ item.subnet }}"
+    state: present
+  loop:
+    - { name: t3_proxy,      subnet: "192.168.90.0/24" }
+    - { name: socket_proxy,  subnet: "192.168.91.0/24" }
+  tags: docker_compose

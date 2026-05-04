@@ -1,5 +1,41 @@
 ---
-- hosts: localhost
+# ============================================================
+# Option A: Consolidated Playbook
+# Play 1 → Provision VM on Proxmox (runs on localhost)
+# Play 2 → Bootstrap OS (runs on the new VM)
+# Play 3 → Deploy Applications (runs on the new VM)
+# ============================================================
+
+# ---- Play 1: Provision Infrastructure ----------------------
+- name: Provision VM on Proxmox
+  hosts: localhost
   gather_facts: false
+  roles:
+    - role: ansible-role-proxmox-vm
+  vars:
+    vm_name: "prod-apps"
+    vm_cores: 4
+    vm_memory: 16384
+    vm_disk_size: 120   # Disk size in GB for resize task
+    force_recreate: false
+# ---- Play 2: OS Bootstrap ----------------------------------
+- name: Initial OS Setup
+  hosts: provisioned_vms
+  gather_facts: true
+  roles:
+    - role: ansible-role-setup
+
+# ---- Play 3: prep docker&pip ---------------------------
+- name: Deploy Applications
+  hosts: provisioned_vms
+  gather_facts: true
+  roles:
+    - role: geerlingguy.docker
+    - role: geerlingguy.pip
+
+# ---- Play 3: Deploy Applications ---------------------------
+- name: Deploy Applications
+  hosts: provisioned_vms
+  gather_facts: true
   roles:
     - role: ansible-role-apps

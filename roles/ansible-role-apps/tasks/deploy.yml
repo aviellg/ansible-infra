@@ -1,0 +1,32 @@
+---
+- name: copy docker-compose files for enabled apps
+  become: true
+  template:
+    src: "services/docker-compose.{{ item }}.yml.j2"
+    dest: "{{DOCKERDIR}}/docker-compose.{{ item }}.yml"
+    owner: "{{ bootstrap_admin_user }}"
+    group: "{{ bootstrap_admin_user }}"
+    mode: '0770'
+  loop: "{{ enabled_apps }}"
+  tags: compose_file
+
+- name: copy only .env file
+  become: true
+  template:
+    src: "{{ item }}"
+    dest: "/home/{{ bootstrap_admin_user }}/docker/.env"
+    owner: root
+    group: root
+    mode: '0640'
+  with_fileglob:
+    - "{{ role_path }}/templates/services/.env"
+  tags: compose_file
+
+- name: start Docker Compose stack
+  become: true
+  community.docker.docker_compose_v2:
+    project_src: "{{DOCKERDIR}}"
+    files: "{{ enabled_apps | map('regex_replace', '(.*)', 'docker-compose.\\1.yml') | list }}"
+    state: present
+    remove_orphans: true
+  tags: docker_compose

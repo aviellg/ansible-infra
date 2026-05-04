@@ -18,6 +18,12 @@ vault_game_db_root_password: "[PASSWORD]"
 ## workgroup\nextcloud SMB mount
 vault_workgroup_smb_username: "autoadmin"
 vault_workgroup_smb_password: "[PASSWORD]"
+vault_nextcloud_db_root_password: "[PASSWORD]"
+vault_nextcloud_admin_user: "autoadmin"
+vault_nextcloud_admin_password: "[PASSWORD]"
+
+
+
 
 ## backup role
 vault_backup_restic_password: "[PASSWORD]"

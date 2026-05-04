@@ -1,0 +1,34 @@
+---
+- name: Prepare OpenBSD host
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Change installation source
+      # temporary fix for https://github.com/lavabit/robox/issues/305
+      ansible.builtin.raw: echo "https://ftp.eu.openbsd.org/pub/OpenBSD" > /etc/installurl
+      changed_when: false
+      when: lookup('env', 'MOLECULE_DISTRO') == 'generic/openbsd7'
+
+    - name: Install python
+      # BSDs are special for Ansible - https://docs.ansible.com/ansible/latest/os_guide/intro_bsd.html
+      ansible.builtin.raw: pkg_add -I python%3.11
+      changed_when: false
+      when: lookup('env', 'MOLECULE_DISTRO') == 'generic/openbsd7'
+
+- name: Wrapper playbook for kitchen testing "ansible-ssh-hardening" with default settings
+  hosts: all
+  become: true
+  environment:
+    http_proxy: "{{ lookup('env', 'http_proxy') | default(omit)  }}"
+    https_proxy: "{{ lookup('env', 'https_proxy') | default(omit) }}"
+    no_proxy: "{{ lookup('env', 'no_proxy') | default(omit) }}"
+  tasks:
+    - name: Create ssh host keys # noqa ignore-errors
+      ansible.builtin.command: ssh-keygen -A
+      when: not ((ansible_facts.os_family in ['Oracle Linux', 'RedHat']) and ansible_facts.distribution_major_version < '7')
+        or ansible_facts.distribution == "Fedora"
+        or ansible_facts.distribution == "Amazon"
+        or ansible_facts.os_family == "Suse"
+      changed_when: false
+      ignore_errors: true

@@ -1,0 +1,12 @@
+---
+- name: cloudflare-ddns - secret
+  block:
+    - name: Create Cloudflare DNS API token file
+      become: true
+      copy:
+        content: "{{ cloudflare_dns_api_token }}"
+        dest: "{{DOCKERDIR}}/secrets/cf_dns_api_token"
+        owner: root
+        group: root
+        mode: '0600'
+      tags: secrets_file

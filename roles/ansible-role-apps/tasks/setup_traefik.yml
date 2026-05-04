@@ -1,0 +1,134 @@
+---
+- name: traefik - secrets, acme,logs, and templates
+  block:  
+    - name: Create traefik directories with correct permissions
+      become: true
+      file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default(bootstrap_admin_user) }}"
+        group: "{{ item.group | default(bootstrap_admin_user) }}"
+        mode: "{{ item.mode | default('0755') }}"
+      loop:
+        - { path: "{{DOCKERDIR}}/logs/udms/traefik", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/traefik3/acme", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/traefik3/rules/udms", mode: "0755" }
+      tags:
+        - directories
+        - log_dirs
+        - traefik_dirs
+        - secrets_dir
+  
+    - name: Make sure we can use htpasswd module
+      apt: "pkg=python3-passlib state=present"
+    
+    - name: Create Basic Auth credentials secret file with correct permissions
+      become: true
+      ansible.builtin.htpasswd:
+        path: "{{DOCKERDIR}}/secrets/basic_auth_credentials"
+        name: "{{ http_username }}"
+        password: "{{ http_password }}"
+        owner: root
+        group: root
+        mode: '0644'
+      tags: secrets_file
+    
+    - name: Create Cloudflare DNS API token file
+      become: true
+      copy:
+        content: "{{ cloudflare_dns_api_token }}"
+        dest: "{{DOCKERDIR}}/secrets/cf_dns_api_token"
+        owner: root
+        group: root
+        mode: '0600'
+      tags: secrets_file
+    
+    - name: Check if acme.json file exists
+      become: true
+      stat:
+        path: "{{DOCKERDIR}}/appdata/traefik3/acme/acme.json"
+      register: acme_file
+    
+    - name: Clear acme.json file if reset_acme is true
+      become: true
+      copy:
+        content: ""
+        dest: "{{DOCKERDIR}}/appdata/traefik3/acme/acme.json"
+        owner: root
+        group: root
+        mode: '0600'
+      when: acme_file.stat.exists and reset_acme
+      tags: acme_file
+    
+    - name: Create empty acme.json file if it doesn't exist
+      become: true
+      file:
+        path: "{{DOCKERDIR}}/appdata/traefik3/acme/acme.json"
+        state: touch
+        mode: '0600'
+      when: not acme_file.stat.exists
+      tags: acme_file
+    
+    - name: Clear traefik.log if reset_logs is true
+      become: true
+      copy:
+        content: ""
+        dest: "{{DOCKERDIR}}/logs/udms/traefik/traefik.log"
+        owner: "{{ bootstrap_admin_user }}"
+        group: "{{ bootstrap_admin_user }}"
+        mode: '0644'
+      when: reset_logs | default(false)
+      notify: Stop traefik container
+      tags: log_files
+    
+    - name: Clear access.log if reset_logs is true
+      become: true
+      copy:
+        content: ""
+        dest: "{{DOCKERDIR}}/logs/udms/traefik/access.log"
+        owner: "{{ bootstrap_admin_user }}"
+        group: "{{ bootstrap_admin_user }}"
+        mode: '0644'
+      when: reset_logs | default(false)
+      notify: Stop traefik container
+      tags: log_files
+    
+    - name: Check if traefik.log exists
+      stat:
+        path: "{{DOCKERDIR}}/logs/udms/traefik/traefik.log"
+      register: traefik_log_file
+      tags: log_files
+    
+    - name: Create empty traefik.log file if it doesn't exist
+      become: true
+      file:
+        path: "{{DOCKERDIR}}/logs/udms/traefik/traefik.log"
+        state: touch
+      when: not traefik_log_file.stat.exists
+      tags: log_files
+    
+    - name: Check if access.log exists
+      stat:
+        path: "{{DOCKERDIR}}/logs/udms/traefik/access.log"
+      register: access_log_file
+      tags: log_files
+    
+    - name: Create empty access.log file if it doesn't exist
+      become: true
+      file:
+        path: "{{DOCKERDIR}}/logs/udms/traefik/access.log"
+        state: touch
+      when: not access_log_file.stat.exists
+      tags: log_files
+
+    - name: Copy all traefik templates to rules/udms directory
+      become: true
+      template:
+        src: "{{ item }}"
+        dest: "{{DOCKERDIR}}/appdata/traefik3/rules/udms/{{ item | basename | regex_replace('.j2$', '') }}"
+        owner: "{{ bootstrap_admin_user }}"
+        group: "{{ bootstrap_admin_user }}"
+        mode: '0644'
+      with_fileglob:
+        - "{{ role_path }}/templates/traefik/*.j2"
+      tags: compose_file

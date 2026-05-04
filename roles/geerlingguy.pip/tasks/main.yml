@@ -1,0 +1,20 @@
+---
+- name: Ensure Pip is installed.
+  ansible.builtin.package:
+    name: "{{ pip_package }}"
+    state: present
+
+- name: Remove EXTERNALLY-MANAGED
+  ansible.builtin.file:
+    path: "/usr/lib/python3.{{ ansible_facts['python']['version']['minor'] }}/EXTERNALLY-MANAGED"
+    state: absent
+
+- name: Ensure pip_install_packages are installed.
+  ansible.builtin.pip:
+    name: "{{ item.name | default(item) }}"
+    version: "{{ item.version | default(omit) }}"
+    virtualenv: "{{ item.virtualenv | default(omit) }}"
+    state: "{{ item.state | default(omit) }}"
+    extra_args: "{{ item.extra_args | default(omit) }}"
+    executable: "{{ item.virtualenv | default(false) | ternary(omit, pip_executable) }}"
+  loop: "{{ pip_install_packages }}"

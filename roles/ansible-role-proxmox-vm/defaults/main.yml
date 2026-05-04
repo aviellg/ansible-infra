@@ -39,9 +39,9 @@ vm_dns: ""          # E.g., "192.168.14.6"
 # ==============================================================================
 # Template / OS Image Settings
 # ==============================================================================
-template_os_download_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
-template_os_name: "ubuntu-focal-template"
-template_os_version: "20.04"
+template_os_download_url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+template_os_name: "ubuntu-noble-template"
+template_os_version: "24.04"
 template_storage_pool: "local"
 vm_storage_pool: "local-lvm"
-pwdhash: "{{ 'cipassword' | password_hash }}"
+wait_for_ssh_timeout: 300

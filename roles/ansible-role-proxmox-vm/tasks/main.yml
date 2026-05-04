@@ -46,6 +46,7 @@
     mode: '0644'
     content: |
       #cloud-config
+      package_update: true
       preserve_hostname: false
       hostname: {{ vm_name }}
       fqdn: {{ vm_name }}.local
@@ -181,9 +182,10 @@
   register: vm_net_info
   until: >
     vm_net_info.proxmox_vms is defined and
-    vm_net_info.proxmox_vms[0].config.agent is defined and
-    vm_net_info.proxmox_vms[0].config.agent | int == 1
-  retries: 20
+    vm_net_info.proxmox_vms | length > 0 and
+    vm_net_info.proxmox_vms[0].network is defined and
+    vm_net_info.proxmox_vms[0].network | selectattr('name', '!=', 'lo') | list | length > 0
+  retries: 30
   delay: 10
 
 - name: Print VM info
@@ -196,15 +198,13 @@
       - name: "{{ vm_net_info.proxmox_vms[0].config.name }}"
         vmid: "{{ vm_net_info.proxmox_vms[0].vmid }}"
         address: >-
-          {{
-            vm_net_info.proxmox_vms[0].network
-            | selectattr('name','!=','lo')
-            | map(attribute='ip-addresses')
-            | map('selectattr', 'ip-address-type', 'equalto', 'ipv4')
-            | map('first')
-            | map(attribute='ip-address')
-            | first
-          }}
+          {%- set networks = vm_net_info.proxmox_vms[0].network | selectattr('name', '!=', 'lo') | list -%}
+          {%- if networks | length > 0 -%}
+            {%- set ips = networks | map(attribute='ip-addresses') | flatten | selectattr('ip-address-type', 'equalto', 'ipv4') | list -%}
+            {%- if ips | length > 0 -%}
+              {{ ips[0]['ip-address'] }}
+            {%- endif -%}
+          {%- endif -%}
 
 - name: Grow the virtual machine existing disk
   community.general.proxmox_disk:
@@ -228,3 +228,25 @@
     node: "{{ node }}"
     state: restarted
   when: resize_result.changed
+
+# ==============================================================================
+# POST-PROVISIONING / BOOTSTRAP
+# ==============================================================================
+- name: Wait for SSH to be available
+  ansible.builtin.wait_for:
+    host: "{{ all_vm_info[0].address }}"
+    port: 22
+    delay: 10
+    timeout: "{{ wait_for_ssh_timeout }}"
+  delegate_to: localhost
+
+- name: Add new VM to dynamic inventory group
+  ansible.builtin.add_host:
+    name: "{{ all_vm_info[0].address }}"
+    groups: "provisioned_vms"
+    ansible_user: "{{ ciuser }}"
+    ansible_password: "{{ cipassword }}"
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_become_pass: "{{ cipassword }}"
+    ansible_ssh_extra_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"

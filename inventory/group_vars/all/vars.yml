@@ -48,7 +48,7 @@ compose_files:
   - docker-compose.authentik.yml
   - docker-compose.it-tools.yml
   - docker-compose.nextcloud.yml
-  - docker-compose.kasm.yml
+#  - docker-compose.kasm.yml
 
 
 

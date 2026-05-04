@@ -4,3 +4,6 @@ collections:
 roles:
   - name: geerlingguy.docker
   - name: geerlingguy.pip
+roles:
+  - src: https://github.com/dev-sec/ansible-collection-hardening.git
+    name: os-hardening 

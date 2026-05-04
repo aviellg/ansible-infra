@@ -1,3 +1,11 @@
+# Infrastructure Provisioning
+provision_infrastructure: false
+vm_name: "app-server"
+vm_cores: 4
+vm_memory: 16384
+vm_disk_size: 120
+force_recreate: false
+
 bootstrap_admin_user: "{{ vault_bootstrap_admin_user }}"
 # ansible-role-traefik/defaults/main.yml
 traefik_version: v2.5.4
@@ -19,16 +27,16 @@ docker_privileged_mode: true
 use_staging: false  # Set to true to use staging certificates
 reset_acme: false  # Set to true to reset the acme.json file
 reset_logs: false  # Set to true to reset the logs
-compose_files:   #comment out if you dont want certain applications 
-  - docker-compose.socket-proxy.yml
-  - docker-compose.traefik.yml
-  - docker-compose.portainer.yml
-#  - docker-compose.gamepanel.yml
-  - docker-compose.cloudflare-ddns.yml
-  - docker-compose.authentik.yml
-  - docker-compose.it-tools.yml
-  - docker-compose.nextcloud.yml
-  - docker-compose.kasm.yml
+enabled_apps:   # comment out if you dont want certain applications 
+  - socket-proxy
+  - traefik
+  - portainer
+#  - gamepanel
+  - cloudflare-ddns
+  - authentik
+  - it-tools
+#  - nextcloud
+#  - kasm
 
 
 # Game Panel Role Variables
@@ -71,7 +79,7 @@ nextcloud_reset: true
 
 
 ## workgroup\nextcloud SMB mount
-workgroup_smb_share: //192.168.14.65/workgroup
+workgroup_smb_share: //truenas.lan/workgroup
 workgroup_smb_mountpoint: /media/workgroup # This should be the base directory for autofs
 workgroup_smb_credentials_file: /etc/auto.workgroupcredentials
 workgroup_smb_username: "{{ vault_workgroup_smb_username }}"

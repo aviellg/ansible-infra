@@ -64,14 +64,6 @@
     group: "{{ bootstrap_admin_user }}"
     mode: '0644'
 
-- name: Create authorized keys file in current user's home directory
-  template:
-    src: authorized_keys.j2
-    dest: "{{ ansible_env.HOME }}/.ssh/authorized_keys"
-    owner: "{{ ansible_env.USER }}"
-    group: "{{ ansible_env.USER }}"
-    mode: '0644'
-
 - name: Ensure SSH changes are correct
   template:
     src: sshd_config.j2

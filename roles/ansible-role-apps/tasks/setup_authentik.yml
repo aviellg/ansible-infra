@@ -1,0 +1,34 @@
+---
+- name: authentik - secrets, config and templates
+  block:
+    - name: remove current data and container
+      become: true
+      file:
+        path: "{{DOCKERDIR}}/appdata/authentik"
+        state: absent
+      when: reset_authentik | default(false)
+      ignore_errors: true
+    - name: remove authentik docker-compose file
+      community.docker.docker_compose_v2:
+        project_src: "{{DOCKERDIR}}"
+        files: ["{{DOCKERDIR}}/docker-compose.authentik.yml"]
+        state: absent
+      when: reset_authentik | default(false)
+      ignore_errors: true
+
+    - name: Create authentik directories with correct permissions
+      become: true
+      file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default(bootstrap_admin_user) }}"
+        group: "{{ item.group | default(bootstrap_admin_user) }}"
+        mode: "{{ item.mode | default('0755') }}"
+      loop:
+        - { path: "{{DOCKERDIR}}/appdata/authentik/database", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/authentik/redis", mode: "0775" }
+        - { path: "{{DOCKERDIR}}/appdata/authentik/media", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/authentik/custom-templates", mode: "0755" }
+        - { path: "{{DOCKERDIR}}/appdata/authentik/certs", mode: "0755" }
+      tags:
+        - authentik-directories

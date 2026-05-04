@@ -1,0 +1,18 @@
+# ---- Play 1: Provision Infrastructure ----------------------
+- name: Provision VM on Proxmox
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: ansible-role-proxmox-vm
+  vars:
+    vm_name: "prod-claw"
+    vm_cores: 4
+    vm_memory: 16384
+    vm_disk_size: 120   # Disk size in GB for resize task
+    force_recreate: false
+# ---- Play 2: OS Bootstrap ----------------------------------
+- name: Initial OS Setup
+  hosts: provisioned_vms
+  gather_facts: true
+  roles:
+    - role: ansible-role-setup 
