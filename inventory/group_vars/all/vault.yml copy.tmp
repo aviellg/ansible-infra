@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #proxmox vault Variables
 vault_proxmox_api_password: "[PASSWORD]"
 vault_proxmox_ssh_pass: "[PASSWORD]"
@@ -28,3 +29,9 @@ vault_nextcloud_admin_password: "[PASSWORD]"
 ## backup role
 vault_backup_restic_password: "[PASSWORD]"
 vault_backup_smb_password: "[PASSWORD]"
+=======
+vault_DOMAINNAME_1: ******
+vault_http_username: ******
+vault_http_password: "******"
+vault_cloudflare_dns_api_token: ******
+>>>>>>> origin/main

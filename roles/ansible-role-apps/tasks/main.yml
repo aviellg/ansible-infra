@@ -1,7 +1,32 @@
+<<<<<<< HEAD
 ---
 # ansible-role-apps/tasks/main.yml
 # Pure application deployment logic. Targets the host it is assigned to.
 # Orchestration (provisioning + setup) is handled by the playbook.
+=======
+## create vm 
+- name: Ensure prod-app VM exists on Proxmox
+  import_role:
+    name: ansible-role-proxmox-vm
+  vars:
+    vm_name: prod-app
+    vm_cores: 8
+    vm_memory: 16384  # 16 GB in MB
+    vm_disk_size: 120G
+    # Network
+    vm_ip: "192.168.14.54"
+    vm_gateway: "192.168.14.1"
+    vm_dns: "192.168.14.6"
+  tags: proxmox
+
+# ansible-role-traefik/tasks/main.yml
+- name: set uid and guid for bootstrap user 
+  block:
+    - name: Get UID of the user
+      command: "id -u {{ bootstrap_admin_user }}"
+      register: uid_result
+      changed_when: false
+>>>>>>> origin/main
 
 - name: Setup base prerequisites and directories
   ansible.builtin.import_tasks: setup_base.yml

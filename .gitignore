@@ -1,3 +1,7 @@
 group_vars/all/vault.yml
 galaxy_roles/
+<<<<<<< HEAD
 inventory/group_vars/all/vault.yml
+=======
+*vault.yml*
+>>>>>>> origin/main

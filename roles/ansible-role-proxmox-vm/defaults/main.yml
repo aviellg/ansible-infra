@@ -5,6 +5,7 @@
 # Global Proxmox Connection & Credentials
 # (These should be defined in group_vars/all or a global variables file)
 # ==============================================================================
+<<<<<<< HEAD
 api_host: "{{ vault_api_host }}"
 api_user: "root@pam"
 api_password: "{{ vault_proxmox_api_password }}"
@@ -12,6 +13,14 @@ proxmox_ssh_user: "root"
 proxmox_ssh_pass: "{{ vault_proxmox_ssh_pass }}"
 node: "pve"
 bootstrap_admin_user: "{{ vault_bootstrap_admin_user }}"
+=======
+api_host: ""
+api_user: "root@pam"
+api_password: ""
+proxmox_ssh_user: "root"
+proxmox_ssh_pass: ""
+node: "pve"
+>>>>>>> origin/main
 
 # Cloud-Init user credentials
 ciuser: "user"
@@ -39,9 +48,18 @@ vm_dns: ""          # E.g., "192.168.14.6"
 # ==============================================================================
 # Template / OS Image Settings
 # ==============================================================================
+<<<<<<< HEAD
 template_os_download_url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
 template_os_name: "ubuntu-noble-template"
 template_os_version: "24.04"
 template_storage_pool: "local"
 vm_storage_pool: "local-lvm"
 wait_for_ssh_timeout: 300
+=======
+template_os_download_url: "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
+template_os_name: "ubuntu-focal-template"
+template_os_version: "20.04"
+template_storage_pool: "local"
+vm_storage_pool: "local-lvm"
+pwdhash: "{{ 'cipassword' | password_hash }}"
+>>>>>>> origin/main

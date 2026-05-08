@@ -46,7 +46,10 @@
     mode: '0644'
     content: |
       #cloud-config
+<<<<<<< HEAD
       package_update: true
+=======
+>>>>>>> origin/main
       preserve_hostname: false
       hostname: {{ vm_name }}
       fqdn: {{ vm_name }}.local
@@ -119,7 +122,11 @@
     serial:
       serial0: socket
     ipconfig:
+<<<<<<< HEAD
       ipconfig0: "{{ 'ip=' ~ vm_ip ~ '/' ~ (vm_subnet | default('24', true)) ~ (',gw=' ~ vm_gateway if vm_gateway | default('', true) else '') if (vm_ip | default('', true) and vm_ip != 'dhcp') else 'ip=dhcp' }}"
+=======
+      ipconfig0: "{{ 'ip=' ~ vm_ip ~ '/' ~ (vm_subnet | default('24')) ~ (',gw=' ~ vm_gateway if vm_gateway | default('') else '') if (vm_ip | default('') and vm_ip != 'dhcp') else 'ip=dhcp' }}"
+>>>>>>> origin/main
   check_mode: true
   register: vm_check
   when: not (force_recreate | default(false) | bool)
@@ -159,7 +166,11 @@
     serial:
       serial0: socket
     ipconfig:
+<<<<<<< HEAD
       ipconfig0: "{{ 'ip=' ~ vm_ip ~ '/' ~ (vm_subnet | default('24', true)) ~ (',gw=' ~ vm_gateway if vm_gateway | default('', true) else '') if (vm_ip | default('', true) and vm_ip != 'dhcp') else 'ip=dhcp' }}"
+=======
+      ipconfig0: "{{ 'ip=' ~ vm_ip ~ '/' ~ (vm_subnet | default('24')) ~ (',gw=' ~ vm_gateway if vm_gateway | default('') else '') if (vm_ip | default('') and vm_ip != 'dhcp') else 'ip=dhcp' }}"
+>>>>>>> origin/main
   register: vm
 
 - name: Start VM
@@ -182,10 +193,16 @@
   register: vm_net_info
   until: >
     vm_net_info.proxmox_vms is defined and
+<<<<<<< HEAD
     vm_net_info.proxmox_vms | length > 0 and
     vm_net_info.proxmox_vms[0].network is defined and
     vm_net_info.proxmox_vms[0].network | selectattr('name', '!=', 'lo') | list | length > 0
   retries: 30
+=======
+    vm_net_info.proxmox_vms[0].config.agent is defined and
+    vm_net_info.proxmox_vms[0].config.agent | int == 1
+  retries: 20
+>>>>>>> origin/main
   delay: 10
 
 - name: Print VM info
@@ -198,6 +215,7 @@
       - name: "{{ vm_net_info.proxmox_vms[0].config.name }}"
         vmid: "{{ vm_net_info.proxmox_vms[0].vmid }}"
         address: >-
+<<<<<<< HEAD
           {%- set networks = vm_net_info.proxmox_vms[0].network | selectattr('name', '!=', 'lo') | list -%}
           {%- if networks | length > 0 -%}
             {%- set ips = networks | map(attribute='ip-addresses') | flatten | selectattr('ip-address-type', 'equalto', 'ipv4') | list -%}
@@ -205,6 +223,17 @@
               {{ ips[0]['ip-address'] }}
             {%- endif -%}
           {%- endif -%}
+=======
+          {{
+            vm_net_info.proxmox_vms[0].network
+            | selectattr('name','!=','lo')
+            | map(attribute='ip-addresses')
+            | map('selectattr', 'ip-address-type', 'equalto', 'ipv4')
+            | map('first')
+            | map(attribute='ip-address')
+            | first
+          }}
+>>>>>>> origin/main
 
 - name: Grow the virtual machine existing disk
   community.general.proxmox_disk:
@@ -217,7 +246,10 @@
     state: resized
   register: resize_result
   delay: 30
+<<<<<<< HEAD
   timeout: 60
+=======
+>>>>>>> origin/main
 
 - name: Restart VM to apply disk changes
   community.proxmox.proxmox_kvm:
@@ -228,6 +260,7 @@
     node: "{{ node }}"
     state: restarted
   when: resize_result.changed
+<<<<<<< HEAD
 
 # ==============================================================================
 # POST-PROVISIONING / BOOTSTRAP
@@ -250,3 +283,5 @@
     ansible_become_method: sudo
     ansible_become_pass: "{{ cipassword }}"
     ansible_ssh_extra_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+=======
+>>>>>>> origin/main
