@@ -1,0 +1,9 @@
+---
+# Application deployment only. Skips provisioning, OS bootstrap and docker install.
+# This is the common case — use it for day-to-day changes.
+
+- name: Deploy applications
+  hosts: app_servers
+  gather_facts: true
+  roles:
+    - role: ansible-role-apps

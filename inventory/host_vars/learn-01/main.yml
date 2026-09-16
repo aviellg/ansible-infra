@@ -1,0 +1,8 @@
+---
+USERDIR: "/opt"
+DOCKERDIR: "/opt/docker"
+HOSTNAME: "learn-01"
+
+enabled_apps:
+  - traefik
+  - it-tools

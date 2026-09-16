@@ -1,2 +1,5 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+* text=auto eol=lf
+*.sh text eol=lf
+
+# Show plaintext diffs for encrypted vaults locally; file stays encrypted at rest
+inventory/group_vars/*/vault.yml diff=ansible-vault merge=binary

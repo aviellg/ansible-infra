@@ -1,9 +1,10 @@
 ---
 collections:
   - name: community.proxmox
+  - name: community.docker
+  - name: ansible.posix
+  - name: devsec.hardening
+
 roles:
   - name: geerlingguy.docker
   - name: geerlingguy.pip
-roles:
-  - src: https://github.com/dev-sec/ansible-collection-hardening.git
-    name: os-hardening 

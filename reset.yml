@@ -1,0 +1,57 @@
+---
+# DESTRUCTIVE. Wipes one service's data and redeploys it clean.
+#
+#   ansible-playbook reset.yml -e reset_service=nextcloud
+#
+# No variable state exists in which a wipe is armed. The extra var is the
+# deliberate act. Appdata is MOVED, not deleted — recovery is a mv back.
+
+- name: Reset a single service
+  hosts: app_servers
+  gather_facts: true
+
+  pre_tasks:
+    - name: Require a service name
+      ansible.builtin.fail:
+        msg: "Usage: ansible-playbook reset.yml -e reset_service=<name>"
+      when: reset_service is not defined or reset_service | length == 0
+
+    - name: Verify the service exists
+      ansible.builtin.stat:
+        path: "{{ DOCKERDIR }}/{{ reset_service }}"
+      register: svc_dir
+
+    - name: Fail if unknown
+      ansible.builtin.fail:
+        msg: "No service directory at {{ DOCKERDIR }}/{{ reset_service }}"
+      when: not svc_dir.stat.exists
+
+  tasks:
+    - name: Stop and remove containers
+      become: true
+      community.docker.docker_compose_v2:
+        project_src: "{{ DOCKERDIR }}/{{ reset_service }}"
+        state: absent
+
+    - name: Move appdata aside
+      become: true
+      ansible.builtin.command:
+        cmd: >
+          mv {{ DOCKERDIR }}/{{ reset_service }}/appdata
+             {{ DOCKERDIR }}/{{ reset_service }}/appdata.pre-reset-{{ ansible_date_time.date }}
+        removes: "{{ DOCKERDIR }}/{{ reset_service }}/appdata"
+
+    - name: Redeploy clean
+      ansible.builtin.include_role:
+        name: ansible-role-apps
+        tasks_from: deploy_service.yml
+      vars:
+        service: "{{ reset_service }}"
+
+  post_tasks:
+    - name: Report
+      ansible.builtin.debug:
+        msg:
+          - "{{ reset_service }} reset and redeployed."
+          - "Previous data: {{ DOCKERDIR }}/{{ reset_service }}/appdata.pre-reset-{{ ansible_date_time.date }}"
+          - "Remove it manually once you are satisfied."

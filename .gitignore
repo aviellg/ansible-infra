@@ -1,3 +1,25 @@
-group_vars/all/vault.yml
+# Vault files — decrypted copies must never be committed
+*vault*.yml
+!inventory/group_vars/*/vault.yml
+*.tmp
+*vault.yml copy*
+
+# Galaxy artifacts
 galaxy_roles/
-inventory/group_vars/all/vault.yml
+collections/
+
+# Ansible runtime
+*.retry
+.ansible/
+*.log
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Never commit backups — git is the version control
+*.bak
+*.bak*
+*.orig

@@ -1,0 +1,15 @@
+---
+ansible_ssh_private_key_file: ~/.ssh/id_ed25519_homelab
+
+DOMAINNAME_1: "{{ vault_domainname_1 }}"
+
+proxmox_api_host: "{{ vault_proxmox_api_host }}"
+proxmox_api_user: "{{ vault_proxmox_api_user }}"
+proxmox_api_password: "{{ vault_proxmox_api_password }}"
+proxmox_ssh_user: "{{ vault_proxmox_ssh_user }}"
+proxmox_ssh_pass: "{{ vault_proxmox_ssh_pass }}"
+proxmox_node: pve
+
+smb_share: "//truenas.lan/workgroup"
+smb_username: "{{ vault_smb_username }}"
+smb_password: "{{ vault_smb_password }}"

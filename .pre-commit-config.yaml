@@ -1,0 +1,112 @@
+# Offline pre-commit config. No external repos are cloned.
+# All hooks run local system binaries: bash, grep, ansible-playbook, ansible-lint.
+#
+# Install once:
+#   pre-commit install                      # commit-stage hooks
+#   pre-commit install --hook-type pre-push # push-stage hooks
+#
+# Run manually:
+#   pre-commit run --all-files
+#   pre-commit run --hook-stage pre-push --all-files
+
+fail_fast: false
+
+repos:
+  - repo: local
+    hooks:
+      # 1) Secrets: private keys and plaintext credentials must never be staged.
+      - id: no-secrets
+        name: block secrets and private keys
+        language: system
+        stages: [pre-commit]
+        pass_filenames: true
+        exclude: '(^|/)vault\.yml$|(^|/)\.pre-commit-config\.yaml$'
+        entry: >
+          bash -c '
+          rc=0;
+          for f in "$@"; do
+            [ -f "$f" ] || continue;
+            case "$f" in *.png|*.jpg|*.gz|*.zip|*.tar) continue;; esac;
+            if grep -qE "BEGIN (RSA|DSA|EC|OPENSSH|PGP) PRIVATE KEY" "$f"; then
+              echo "[secret] private key block in $f"; rc=1;
+            fi;
+            if grep -qiE "^[[:space:]]*[A-Za-z0-9_]*(password|passwd|secret|token|api_key|apikey|private_key)[A-Za-z0-9_]*[[:space:]]*[:=][[:space:]]*[\"'"'"']?[A-Za-z0-9/+_.@!-]{8,}" "$f" \
+               | grep -qv ""; then
+              if grep -inE "^[[:space:]]*[A-Za-z0-9_]*(password|passwd|secret|token|api_key|apikey|private_key)[A-Za-z0-9_]*[[:space:]]*[:=][[:space:]]*[\"'"'"']?[A-Za-z0-9/+_.@!-]{8,}" "$f" \
+                 | grep -vE "\{\{|\$\{|vault_|lookup\(|ANSIBLE_VAULT|CHANGEME|changeme|example" ; then
+                echo "[secret] plaintext credential in $f (use vault_ var or {{ }})"; rc=1;
+              fi;
+            fi;
+          done; exit $rc' --
+
+      # 1b) SSH private keys by path. files/ssh/ must hold public halves only.
+      - id: no-private-keyfiles
+        name: block private key files
+        language: system
+        stages: [pre-commit]
+        pass_filenames: true
+        files: '(^files/ssh/|\.pem$|\.key$|(^|/)id_(rsa|ed25519|ecdsa|dsa)$)'
+        entry: >
+          bash -c '
+          rc=0;
+          for f in "$@"; do
+            case "$f" in *.pub) continue;; esac;
+            echo "[key] private key file staged: $f"; rc=1;
+          done; exit $rc' --
+
+      # 2) Vault files must be encrypted.
+      - id: vault-encrypted
+        name: vault files must be ansible-vault encrypted
+        language: system
+        stages: [pre-commit]
+        pass_filenames: true
+        files: '(^|/)vault\.yml$|(^|/)vault_.*\.yml$|\.vault$'
+        entry: >
+          bash -c '
+          rc=0;
+          for f in "$@"; do
+            head -c 14 "$f" | grep -q "\$ANSIBLE_VAULT" || { echo "[vault] NOT encrypted: $f"; rc=1; };
+          done; exit $rc' --
+
+      # 2b) Backup and temp copies must never be staged.
+      - id: no-backup-files
+        name: block backup and temp files
+        language: system
+        stages: [pre-commit]
+        pass_filenames: true
+        files: '(\.bak[a-z0-9]*$|~$|\.orig$|\.rej$|\.swp$|\.tmp$|\.save$|\.old$|\.retry$)'
+        entry: >
+          bash -c '
+          for f in "$@"; do echo "[backup] remove or gitignore: $f"; done; exit 1' --
+
+      # 3a) Syntax check on commit. Offline, uses local ansible-playbook.
+      - id: ansible-syntax-check
+        name: ansible syntax-check (offline)
+        language: system
+        stages: [pre-commit]
+        pass_filenames: false
+        files: '\.(yml|yaml|j2|cfg)$'
+        entry: >
+          bash -c '
+          set -e;
+          export ANSIBLE_GALAXY_SERVER_LIST=""; export ANSIBLE_RETRY_FILES_ENABLED=False;
+          VP="";
+          [ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ] && [ -f "$ANSIBLE_VAULT_PASSWORD_FILE" ] && VP="--vault-password-file $ANSIBLE_VAULT_PASSWORD_FILE";
+          [ -z "$VP" ] && [ -f "$HOME/.ansible/vault_pass" ] && VP="--vault-password-file $HOME/.ansible/vault_pass";
+          for p in site.yml apps.yml reset.yml; do
+            [ -f "$p" ] || continue;
+            echo "--> syntax-check $p";
+            ansible-playbook --syntax-check $VP -i inventory/hosts "$p";
+          done'
+
+      # 3b) Lint on push only. Slower, so it stays out of the commit path.
+      - id: ansible-lint
+        name: ansible-lint (offline, pre-push)
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+        entry: >
+          bash -c '
+          command -v ansible-lint >/dev/null || { echo "ansible-lint not installed: pipx install ansible-lint"; exit 1; };
+          ANSIBLE_LINT_IGNORE_FILE=.ansible-lint-ignore ansible-lint --offline -p site.yml apps.yml reset.yml roles/'

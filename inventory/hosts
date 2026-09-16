@@ -1,9 +1,14 @@
-[local]
-localhost ansible_connection=local
+[homelab]
+prod-app ansible_host=192.168.14.54
 
-[proxmox_nodes]
-pve ansible_host=192.168.14.33 ansible_user=root ansible_password=22082208
+[work]
+learn-01 ansible_host=10.0.0.10
 
-[all:children]
-local
-proxmox_nodes
+# Functional group — playbooks target this, not the environment groups.
+[app_servers:children]
+homelab
+work
+
+[all:vars]
+ansible_user=aviellg
+ansible_python_interpreter=/usr/bin/python3

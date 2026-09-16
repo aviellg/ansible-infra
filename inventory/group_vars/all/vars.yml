@@ -1,101 +1,20 @@
-# ==============================================================================
-# Global Proxmox Connection & Credentials
-# (These should be defined in group_vars/all or a global variables file)
-# ==============================================================================
-api_host: "192.168.14.33"
-api_user: "root@pam"
-api_password: "{{ vault_proxmox_api_password }}"
-proxmox_ssh_user: "root"
-proxmox_ssh_pass: "{{ vault_proxmox_ssh_pass }}"
-node: "pve"
-proxmox_host: "{{ api_host }}"
-force_recreate: false
+---
+# Shared, non-secret, environment-independent.
+# Anything environment-specific belongs in group_vars/<env>/
+# Anything host-specific belongs in host_vars/<host>/
+# Anything secret belongs in group_vars/<env>/vault.yml
 
-
-# Cloud-Init user credentials
-ciuser: "{{ bootstrap_admin_user }}"
-cipassword: "{{ vault_bootstrap_admin_password }}"
-
-# ==============================================================================
-# apps role variables
-# ==============================================================================
+TZ: "Asia/Jerusalem"
 PUID: 1000
 PGID: 1000
-TZ: "Asia/Jerusalem"
-USERDIR: "/home/{{ bootstrap_admin_user }}"
-DOCKERDIR: "/home/{{ bootstrap_admin_user }}/docker"
-DATADIR: "/media/workgroup"
-HOSTNAME: "udms"
 
-# traefik variables
-traefik_version: v2.5.4
-traefik_data_folder: "/home/{{ bootstrap_admin_user }}/traefik"
-DOMAINNAME_1: "{{ vault_DOMAINNAME_1 }}"
-LOCAL_IPS: "127.0.0.1/32,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12,192.168.14.0/12"
+bootstrap_admin_user: "{{ vault_bootstrap_admin_user }}"
+
+LOCAL_IPS: "127.0.0.1/32,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12"
 CLOUDFLARE_IPS: "173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22"
-http_username: "{{ vault_http_username }}"
-http_password: "{{ vault_http_password }}"
-cloudflare_dns_api_token: "{{ vault_cloudflare_dns_api_token }}"
-use_staging: false  # Set to true to use staging certificates
-reset_acme: false  # Set to true to reset the acme.json file
-reset_logs: false  # Set to true to reset the logs
-compose_files:
-  - docker-compose.socket-proxy.yml
-  - docker-compose.traefik.yml
-  - docker-compose.portainer.yml
-#  - docker-compose.gamepanel.yml
-  - docker-compose.cloudflare-ddns.yml
-  - docker-compose.authentik.yml
-  - docker-compose.it-tools.yml
-  - docker-compose.nextcloud.yml
-#  - docker-compose.kasm.yml
 
+docker_networks:
+  - { name: t3_proxy,     subnet: "192.168.90.0/24" }
+  - { name: socket_proxy, subnet: "192.168.91.0/24" }
 
-
-## authentik
-reset_authentik: false
-
-# Game Panel Role Variables
-gamepanel_db_name: panel
-gamepanel_db_user: pterodactyl
-gamepanel_db_password: "{{ vault_gamepanel_db_password }}"
-gamepanel_db_root_password: "{{ vault_gamepanel_db_root_password }}"
-GAMEPANEL_TIMEZONE: Asia/Jerusalem
-GAMEPANEL_DOMAIN: "panel.{{ DOMAINNAME_1 }}"
-GAMEPANEL_EMAIL: "{{ vault_GAMEPANEL_EMAIL }}"
-GAMEPANEL_MAIL_HOST: "mail.{{ DOMAINNAME_1 }}"
-GAMEPANEL_MAIL_PORT: 587
-GAMEPANEL_MAIL_PASSWORD: "{{ vault_GAMEPANEL_MAIL_PASSWORD }}"
-GAMEPANEL_WINGS_DOMAIN: "wings0.{{ DOMAINNAME_1 }}"
-GAMEPANEL_UID: "1000"
-GAMEPANEL_GID: "1000"
-GAMEPANEL_WINGS_USER: pterodactyl
-GAMEPANEL_WINGS_SUBNET: "172.50.0.0/16"
-GAME_DB_NAME: game
-GAME_DB_USER: game
-GAME_DB_PASSWORD: "{{ vault_GAME_DB_PASSWORD }}"
-GAME_DB_ROOT_PASSWORD: "{{ vault_GAME_DB_ROOT_PASSWORD }}"
-
-## workgroup\nextcloud SMB mount
-workgroup_smb_share: //192.168.14.65/workgroup
-workgroup_smb_mountpoint: /media/workgroup # This should be the base directory for autofs
-workgroup_smb_credentials_file: /etc/auto.workgroupcredentials
-workgroup_smb_username: "{{ vault_workgroup_smb_username }}"
-workgroup_smb_password: "{{ vault_workgroup_smb_password }}"
-
-# Backup Role Variables
-backup_restic_repo: "{{ backup_smb_mountpoint }}/restic-repo" # Using a subfolder in the mount for the repo
-backup_restic_password_file: /root/.restic_pass
-backup_restic_password: "{{ vault_backup_restic_password }}"
-backup_paths:
-  - "{{ DOCKERDIR }}"
-backup_retention_policy: "--keep-daily 7 --keep-weekly 4 --keep-monthly 6"
-backup_force: false
-
-backup_smb_share: //192.168.14.65/appdata
-backup_smb_mountpoint: /media/truenas # This should be the base directory for autofs
-backup_smb_credentials_file: /etc/auto.credentials
-backup_smb_username: autoadmin
-backup_smb_password: "{{ vault_backup_smb_password }}"
-
-
+compose_remove_orphans: false
