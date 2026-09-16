@@ -78,6 +78,33 @@ fi
 ok "packages present"
 
 # ---------------------------------------------------------------------------
+step "1b/11  Local
+e support"
+# ---------------------------------------------------------------------------
+# VS Code, Git extensions, pre-commit and some Python tools occasionally
+# launch with LC_ALL=en_US.UTF-8 even when the interactive shell uses
+# C.UTF-8. If the locale does not exist, commits from GUI clients can fail
+# with:
+#
+#   setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
+#   Ansible could not initialize the preferred locale
+#
+# Generating the locale is harmless and prevents those failures.
+
+if ! locale -a 2>/dev/null | grep -qi '^en_US\.utf8$'; then
+    echo "    enabling en_US.UTF-8 locale"
+
+    dpkg -s locales >/dev/null 2>&1 || {
+        sudo apt-get update -qq
+        sudo apt-get install -y locales
+    }
+
+    sudo locale-gen en_US.UTF-8 >/dev/null
+fi
+
+ok "locale support present"
+
+# ---------------------------------------------------------------------------
 step "2/11  Ansible"
 # ---------------------------------------------------------------------------
 # The distro ansible package is typically too old for community.proxmox 2.x
@@ -810,29 +837,3 @@ ${GRN}==========================================
   If pipx was just installed, restart your shell or: source ~/.bashrc
 
 EOF
-
-# ---------------------------------------------------------------------------
-step "1b/11  Locale support"
-# ---------------------------------------------------------------------------
-# VS Code, Git extensions, pre-commit and some Python tools occasionally
-# launch with LC_ALL=en_US.UTF-8 even when the interactive shell uses
-# C.UTF-8. If the locale does not exist, commits from GUI clients can fail
-# with:
-#
-#   setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
-#   Ansible could not initialize the preferred locale
-#
-# Generating the locale is harmless and prevents those failures.
-
-if ! locale -a 2>/dev/null | grep -qi '^en_US\.utf8$'; then
-    echo "    enabling en_US.UTF-8 locale"
-
-    dpkg -s locales >/dev/null 2>&1 || {
-        sudo apt-get update -qq
-        sudo apt-get install -y locales
-    }
-
-    sudo locale-gen en_US.UTF-8 >/dev/null
-fi
-
-ok "locale support present"
