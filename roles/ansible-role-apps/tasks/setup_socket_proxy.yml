@@ -1,11 +1,13 @@
 ---
-- name: socket proxy - Detect environment and set docker_privileged_mode
+- name: Socket proxy - Detect environment and set privileged mode
+  tags: docker_privileged_mode
   block:
     - name: Detect if running inside a container
-      set_fact:
-        is_container: "{{ (ansible_virtualization_type | default('') in ['docker', 'lxc', 'container']) and (ansible_virtualization_role | default('') == 'guest') }}"
+      ansible.builtin.set_fact:
+        apps_is_container: >-
+          {{ (ansible_virtualization_type | default('') in ['docker', 'lxc', 'container']) and
+             (ansible_virtualization_role | default('') == 'guest') }}
 
     - name: Set docker_privileged_mode based on environment
-      set_fact:
-        docker_privileged_mode: "{{ 'false' if is_container else 'true' }}"
-  tags: docker_privileged_mode
+      ansible.builtin.set_fact:
+        apps_docker_privileged_mode: "{{ 'false' if apps_is_container else 'true' }}"

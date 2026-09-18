@@ -1,34 +1,35 @@
 ---
-- name: authentik - secrets, config and templates
+- name: Authentik - Secrets, config and templates
   block:
-    - name: remove current data and container
+    - name: Remove current Authentik data directory
       become: true
-      file:
-        path: "{{DOCKERDIR}}/appdata/authentik"
+      ansible.builtin.file:
+        path: "{{ apps_dockerdir }}/appdata/authentik"
         state: absent
-      when: reset_authentik | default(false)
-      ignore_errors: true
-    - name: remove authentik docker-compose file
-      community.docker.docker_compose_v2:
-        project_src: "{{DOCKERDIR}}"
-        files: ["{{DOCKERDIR}}/docker-compose.authentik.yml"]
-        state: absent
-      when: reset_authentik | default(false)
-      ignore_errors: true
+      when: apps_reset_authentik | default(false)
+      ignore_errors: true # noqa: ignore-errors
 
-    - name: Create authentik directories with correct permissions
+    - name: Remove Authentik Docker Compose file
+      community.docker.docker_compose_v2:
+        project_src: "{{ apps_dockerdir }}"
+        files: ["{{ apps_dockerdir }}/docker-compose.authentik.yml"]
+        state: absent
+      when: apps_reset_authentik | default(false)
+      ignore_errors: true # noqa: ignore-errors
+
+    - name: Create Authentik directories with correct permissions
       become: true
-      file:
+      ansible.builtin.file:
         path: "{{ item.path }}"
         state: directory
-        owner: "{{ item.owner | default(bootstrap_admin_user) }}"
-        group: "{{ item.group | default(bootstrap_admin_user) }}"
+        owner: "{{ item.owner | default(apps_admin_user) }}"
+        group: "{{ item.group | default(apps_admin_user) }}"
         mode: "{{ item.mode | default('0755') }}"
       loop:
-        - { path: "{{DOCKERDIR}}/appdata/authentik/database", mode: "0755" }
-        - { path: "{{DOCKERDIR}}/appdata/authentik/redis", mode: "0775" }
-        - { path: "{{DOCKERDIR}}/appdata/authentik/media", mode: "0755" }
-        - { path: "{{DOCKERDIR}}/appdata/authentik/custom-templates", mode: "0755" }
-        - { path: "{{DOCKERDIR}}/appdata/authentik/certs", mode: "0755" }
+        - { path: "{{ apps_dockerdir }}/appdata/authentik/database", mode: "0755" }
+        - { path: "{{ apps_dockerdir }}/appdata/authentik/redis", mode: "0775" }
+        - { path: "{{ apps_dockerdir }}/appdata/authentik/media", mode: "0755" }
+        - { path: "{{ apps_dockerdir }}/appdata/authentik/custom-templates", mode: "0755" }
+        - { path: "{{ apps_dockerdir }}/appdata/authentik/certs", mode: "0755" }
       tags:
         - authentik-directories

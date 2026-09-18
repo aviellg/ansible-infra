@@ -18,28 +18,28 @@
 
     - name: Verify the service exists
       ansible.builtin.stat:
-        path: "{{ DOCKERDIR }}/{{ reset_service }}"
+        path: "{{ apps_dockerdir }}/{{ reset_service }}"
       register: svc_dir
 
     - name: Fail if unknown
       ansible.builtin.fail:
-        msg: "No service directory at {{ DOCKERDIR }}/{{ reset_service }}"
+        msg: "No service directory at {{ apps_dockerdir }}/{{ reset_service }}"
       when: not svc_dir.stat.exists
 
   tasks:
     - name: Stop and remove containers
       become: true
       community.docker.docker_compose_v2:
-        project_src: "{{ DOCKERDIR }}/{{ reset_service }}"
+        project_src: "{{ apps_dockerdir }}/{{ reset_service }}"
         state: absent
 
     - name: Move appdata aside
       become: true
       ansible.builtin.command:
         cmd: >
-          mv {{ DOCKERDIR }}/{{ reset_service }}/appdata
-             {{ DOCKERDIR }}/{{ reset_service }}/appdata.pre-reset-{{ ansible_date_time.date }}
-        removes: "{{ DOCKERDIR }}/{{ reset_service }}/appdata"
+          mv {{ apps_dockerdir }}/{{ reset_service }}/appdata
+             {{ apps_dockerdir }}/{{ reset_service }}/appdata.pre-reset-{{ ansible_date_time.date }}
+        removes: "{{ apps_dockerdir }}/{{ reset_service }}/appdata"
 
     - name: Redeploy clean
       ansible.builtin.include_role:
@@ -53,5 +53,5 @@
       ansible.builtin.debug:
         msg:
           - "{{ reset_service }} reset and redeployed."
-          - "Previous data: {{ DOCKERDIR }}/{{ reset_service }}/appdata.pre-reset-{{ ansible_date_time.date }}"
+          - "Previous data: {{ apps_dockerdir }}/{{ reset_service }}/appdata.pre-reset-{{ ansible_date_time.date }}"
           - "Remove it manually once you are satisfied."

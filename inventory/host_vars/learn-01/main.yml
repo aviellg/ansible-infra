@@ -1,8 +1,10 @@
 ---
-USERDIR: "/opt"
-DOCKERDIR: "/opt/docker"
-HOSTNAME: "learn-01"
+apps_userdir: "/opt"
+apps_dockerdir: "/opt/docker"
+apps_hostname: "learn-01"
 
-enabled_apps:
+apps_enabled_apps:
   - traefik
   - it-tools
+
+enabled_apps: "{{ apps_enabled_apps }}"

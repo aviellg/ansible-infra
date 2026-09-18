@@ -1,7 +1,7 @@
 http:
   routers:
     nextcloud:
-      rule: "Host(`nextcloud.{{ DOMAINNAME_1 }}`)"  # Adjust domain as needed
+      rule: "Host(`nextcloud.{{ apps_domainname }}`)"  # Adjust domain as needed
       entrypoints:
         - "websecure"
       service: nextcloud

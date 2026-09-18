@@ -30,9 +30,10 @@ repos:
             if grep -qE "BEGIN (RSA|DSA|EC|OPENSSH|PGP) PRIVATE KEY" "$f"; then
               echo "[secret] private key block in $f"; rc=1;
             fi;
-            if grep -qiE "^[[:space:]]*[A-Za-z0-9_]*(password|passwd|secret|token|api_key|apikey|private_key)[A-Za-z0-9_]*[[:space:]]*[:=][[:space:]]*[\"'"'"']?[A-Za-z0-9/+_.@!-]{8,}" "$f" \
-               | grep -qv ""; then
-              if grep -inE "^[[:space:]]*[A-Za-z0-9_]*(password|passwd|secret|token|api_key|apikey|private_key)[A-Za-z0-9_]*[[:space:]]*[:=][[:space:]]*[\"'"'"']?[A-Za-z0-9/+_.@!-]{8,}" "$f" \
+            pat="^[[:space:]]*[A-Za-z0-9_]*(password|passwd|secret|token|api_key|apikey|private_key)"
+            pat="${pat}[A-Za-z0-9_]*[[:space:]]*[:=][[:space:]]*[\"'"'"']?[A-Za-z0-9/+_.@!-]{8,}"
+            if grep -qiE "$pat" "$f" | grep -qv ""; then
+              if grep -inE "$pat" "$f" \
                  | grep -vE "\{\{|\$\{|vault_|lookup\(|ANSIBLE_VAULT|CHANGEME|changeme|example" ; then
                 echo "[secret] plaintext credential in $f (use vault_ var or {{ }})"; rc=1;
               fi;

@@ -7,10 +7,10 @@ services:
     restart: always
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
-      - {{DOCKERDIR}}/appdata/nextcloud/db:/var/lib/mysql
+      - {{ apps_dockerdir }}/appdata/nextcloud/db:/var/lib/mysql
     environment:
-      - MYSQL_ROOT_PASSWORD={{ nextcloud_db_root_password }}
-      - MYSQL_PASSWORD={{ nextcloud_db_password }}
+      - MYSQL_ROOT_PASSWORD={{ apps_nextcloud_db_root_password }}
+      - MYSQL_PASSWORD={{ apps_nextcloud_db_password }}
       - MYSQL_DATABASE=nextcloud
       - MYSQL_USER=nextcloud
 
@@ -24,31 +24,31 @@ services:
       - nextcloud-internal
       - t3_proxy
     volumes:
-      - {{DOCKERDIR}}/appdata/nextcloud/config:/var/www/html
-      - {{DOCKERDIR}}/appdata/nextcloud/data:/mnt/data
-      - {{DATADIR}}:/mnt/shared
+      - {{ apps_dockerdir }}/appdata/nextcloud/config:/var/www/html
+      - {{ apps_dockerdir }}/appdata/nextcloud/data:/mnt/data
+      - {{ apps_datadir }}:/mnt/shared
     environment:
-      - MYSQL_PASSWORD={{ nextcloud_db_password }}
+      - MYSQL_PASSWORD={{ apps_nextcloud_db_password }}
       - MYSQL_DATABASE=nextcloud
       - MYSQL_USER=nextcloud
       - MYSQL_HOST=nextcloud-db
-      - NEXTCLOUD_ADMIN_USER={{ nextcloud_admin_user }}
-      - NEXTCLOUD_ADMIN_PASSWORD={{ nextcloud_admin_password }}
-      - NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domain }}
-      - NEXTCLOUD_UPDATE={{ nextcloud_update }}
-      - NEXTCLOUD_INIT_HTACCESS={{ nextcloud_update }}
+      - NEXTCLOUD_ADMIN_USER={{ apps_nextcloud_admin_user }}
+      - NEXTCLOUD_ADMIN_PASSWORD={{ apps_nextcloud_admin_password }}
+      - NEXTCLOUD_TRUSTED_DOMAINS={{ apps_nextcloud_trusted_domain }}
+      - NEXTCLOUD_UPDATE={{ apps_nextcloud_update }}
+      - NEXTCLOUD_INIT_HTACCESS={{ apps_nextcloud_update }}
       - PHP_MEMORY_LIMIT=512M
       - UPLOAD_LIMIT=20G
       - APACHE_DISABLE_REWRITE_IP=1
       - TRUSTED_PROXIES=192.168.90.0/24
       - OVERWRITEPROTOCOL=https
-      - OVERWRITECLIURL=https://nextcloud.{{ DOMAINNAME_1 }}
+      - OVERWRITECLIURL=https://nextcloud.{{ apps_domainname }}
 
     labels:
       - "traefik.enable=true"
       # HTTP Routers
       - "traefik.http.routers.nextcloud-rtr.entrypoints=websecure"
-      - "traefik.http.routers.nextcloud-rtr.rule=Host(`nextcloud.{{ DOMAINNAME_1 }}`)"
+      - "traefik.http.routers.nextcloud-rtr.rule=Host(`nextcloud.{{ apps_domainname }}`)"
       # Middlewares
       - "traefik.http.routers.nextcloud-rtr.middlewares=chain-no-auth@file"
       # HTTP Services

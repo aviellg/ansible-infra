@@ -1,14 +1,16 @@
 ---
-- name: nextcloud operations
+- name: Nextcloud - Reset and directory setup
+  tags:
+    - nextcloud
   block:
     - name: Stop and remove Nextcloud compose stack (if present)
       community.docker.docker_compose_v2:
-        project_src: "{{ DOCKERDIR }}"
+        project_src: "{{ apps_dockerdir }}"
         files:
-          - "{{ DOCKERDIR }}/docker-compose.nextcloud.yml"
+          - "{{ apps_dockerdir }}/docker-compose.nextcloud.yml"
         state: absent
-      when: nextcloud_reset | default(false)
-      ignore_errors: true
+      when: apps_nextcloud_reset | default(false)
+      ignore_errors: true # noqa: ignore-errors
       tags:
         - nextcloud_reset
 
@@ -20,33 +22,31 @@
       loop:
         - nextcloud-app
         - nextcloud-db
-      when: nextcloud_reset | default(false)
-      ignore_errors: true
+      when: apps_nextcloud_reset | default(false)
+      ignore_errors: true # noqa: ignore-errors
       tags:
         - nextcloud_reset
 
     - name: Remove Nextcloud appdata directory
       become: true
-      file:
-        path: "{{ DOCKERDIR }}/appdata/nextcloud"
+      ansible.builtin.file:
+        path: "{{ apps_dockerdir }}/appdata/nextcloud"
         state: absent
-      when: nextcloud_reset | default(false)
+      when: apps_nextcloud_reset | default(false)
       tags:
         - nextcloud_reset
 
-    - name: Create nextcloud directories with correct permissions
+    - name: Create Nextcloud directories with correct permissions
       become: true
-      file:
+      ansible.builtin.file:
         path: "{{ item.path }}"
         state: directory
-        owner: "{{ item.owner | default(bootstrap_admin_user) }}"
-        group: "{{ item.group | default(bootstrap_admin_user) }}"
+        owner: "{{ item.owner | default(apps_admin_user) }}"
+        group: "{{ item.group | default(apps_admin_user) }}"
         mode: "{{ item.mode | default('0775') }}"
       loop:
-        - { path: "{{DOCKERDIR}}/appdata/nextcloud/config", mode: "0775" }
-        - { path: "{{DOCKERDIR}}/appdata/nextcloud/data", mode: "0775" }
-        - { path: "{{DOCKERDIR}}/appdata/nextcloud/db", mode: "0775" }
+        - { path: "{{ apps_dockerdir }}/appdata/nextcloud/config", mode: "0775" }
+        - { path: "{{ apps_dockerdir }}/appdata/nextcloud/data", mode: "0775" }
+        - { path: "{{ apps_dockerdir }}/appdata/nextcloud/db", mode: "0775" }
       tags:
         - directories
-  tags:
-    - nextcloud

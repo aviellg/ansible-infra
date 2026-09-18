@@ -2,9 +2,9 @@
 # Host-specific. What runs HERE.
 # Service definitions live in roles/ansible-role-apps/services/
 
-USERDIR: "/home/{{ bootstrap_admin_user }}"
-DOCKERDIR: "/home/{{ bootstrap_admin_user }}/docker"
-HOSTNAME: "prod-app"
+apps_userdir: "/home/{{ apps_admin_user }}"
+apps_dockerdir: "/home/{{ apps_admin_user }}/docker"
+apps_hostname: "prod-app"
 
 vm_name: prod-app
 vm_cores: 8
@@ -15,7 +15,7 @@ vm_gateway: "192.168.14.1"
 vm_dns: "192.168.14.6"
 
 # Order matters — dependencies deploy first.
-enabled_apps:
+apps_enabled_apps:
   - socket-proxy
   - traefik
   - authentik
@@ -24,3 +24,5 @@ enabled_apps:
   - cloudflare-ddns
   - backrest
 #  - nextcloud
+
+enabled_apps: "{{ apps_enabled_apps }}"

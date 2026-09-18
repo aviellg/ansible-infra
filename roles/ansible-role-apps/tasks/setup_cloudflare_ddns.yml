@@ -1,12 +1,12 @@
 ---
-- name: cloudflare-ddns - secret
+- name: Cloudflare DDNS - Create secret token file
   block:
     - name: Create Cloudflare DNS API token file
       become: true
-      copy:
-        content: "{{ cloudflare_dns_api_token }}"
-        dest: "{{DOCKERDIR}}/secrets/cf_dns_api_token"
+      ansible.builtin.copy:
+        content: "{{ apps_cloudflare_dns_api_token }}"
+        dest: "{{ apps_dockerdir }}/secrets/cf_dns_api_token"
         owner: root
         group: root
-        mode: '0600'
+        mode: "0600"
       tags: secrets_file

@@ -1,81 +1,81 @@
 ---
 # Base prerequisites for the applications
-- name: set uid and guid for bootstrap user 
+- name: Set UID and GID for bootstrap user
   block:
     - name: Get UID of the user
-      command: "id -u {{ bootstrap_admin_user }}"
+      ansible.builtin.command: "id -u {{ apps_admin_user }}"
       register: uid_result
       changed_when: false
 
     - name: Get GID of the user
-      command: "id -g {{ bootstrap_admin_user }}"
+      ansible.builtin.command: "id -g {{ apps_admin_user }}"
       register: gid_result
       changed_when: false
 
     - name: Set PUID and PGID variables
-      set_fact:
-        PUID: "{{ uid_result.stdout }}"
-        PGID: "{{ gid_result.stdout }}"
+      ansible.builtin.set_fact:
+        apps_puid: "{{ uid_result.stdout }}"
+        apps_pgid: "{{ gid_result.stdout }}"
 
 - name: Allow HTTP traffic through firewall
   become: true
-  ufw:
+  community.general.ufw:
     rule: allow
-    port: '80'
+    port: "80"
     proto: tcp
   tags: firewall
 
 - name: Create docker necessary directories with correct permissions
   become: true
-  file:
+  ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
-    owner: "{{ item.owner | default(bootstrap_admin_user) }}"
-    group: "{{ item.group | default(bootstrap_admin_user) }}"
+    owner: "{{ item.owner | default(apps_admin_user) }}"
+    group: "{{ item.group | default(apps_admin_user) }}"
     mode: "{{ item.mode | default('0755') }}"
   loop:
-    - { path: "{{DOCKERDIR}}/secrets", mode: "0700" }
-    - { path: "{{DOCKERDIR}}/logs/udms", mode: "0755" }
-    - { path: "{{DOCKERDIR}}/appdata", mode: "0775" }
+    - { path: "{{ apps_dockerdir }}/secrets", mode: "0700" }
+    - { path: "{{ apps_dockerdir }}/logs/udms", mode: "0755" }
+    - { path: "{{ apps_dockerdir }}/appdata", mode: "0775" }
   tags:
     - directories
     - log_dirs
     - secrets_dir
 
-- name: mount smb share for media files in /media/workgroup
+- name: Mount SMB share for media files
   block:
-  - name: Ensure cifs-utils is installed
-    ansible.builtin.package:
-      name: "{{ 'cifs-utils' if ansible_os_family == 'Debian' else 'samba-client' }}"
-      state: present
-  
-  - name: create DATADIR parent directory if it doesn't exist  
-    become: true
-    ansible.builtin.file:
-      path: "{{ item.path }}"
-      state: directory
-      owner: "{{ item.owner | default(bootstrap_admin_user) }}"
-      group: "{{ item.group | default(bootstrap_admin_user) }}"
-      mode: "{{ item.mode | default('0775') }}"
-    loop:
-      - { path: "{{DATADIR}}", mode: "0775" }
+    - name: Ensure cifs-utils is installed
+      ansible.builtin.package:
+        name: "{{ 'cifs-utils' if ansible_os_family == 'Debian' else 'samba-client' }}"
+        state: present
 
-  - name: Create SMB credentials file
-    become: true
-    template:
-      src: templates/smb/credentials.j2
-      dest: "{{ workgroup_smb_credentials_file }}"
-      mode: '0600'
-    when: workgroup_smb_credentials_file is defined
-  
-  - name: Ensure SMB share is mounted via fstab
-    become: true
-    ansible.posix.mount:
-      src: "{{ workgroup_smb_share }}"
-      path: "{{ DATADIR }}"
-      fstype: cifs
-      opts: "credentials={{ workgroup_smb_credentials_file }},vers=3.0,_netdev,nofail"
-      state: present
+    - name: Create data directory if it does not exist
+      become: true
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default(apps_admin_user) }}"
+        group: "{{ item.group | default(apps_admin_user) }}"
+        mode: "{{ item.mode | default('0775') }}"
+      loop:
+        - { path: "{{ apps_datadir }}", mode: "0775" }
+
+    - name: Create SMB credentials file
+      become: true
+      ansible.builtin.template:
+        src: templates/smb/credentials.j2
+        dest: "{{ apps_smb_credentials_file }}"
+        mode: "0600"
+      when: apps_smb_credentials_file is defined
+
+    - name: Ensure SMB share is mounted via fstab
+      become: true
+      ansible.posix.mount:
+        src: "{{ apps_smb_share }}"
+        path: "{{ apps_datadir }}"
+        fstype: cifs
+        opts: "credentials={{ apps_smb_credentials_file }},vers=3.0,_netdev,nofail"
+        state: present
 
 - name: Cleanup old traefik3_proxy network if it exists (to avoid subnet overlap)
   become: true
@@ -93,6 +93,6 @@
       - subnet: "{{ item.subnet }}"
     state: present
   loop:
-    - { name: t3_proxy,      subnet: "192.168.90.0/24" }
-    - { name: socket_proxy,  subnet: "192.168.91.0/24" }
+    - { name: t3_proxy, subnet: "192.168.90.0/24" }
+    - { name: socket_proxy, subnet: "192.168.91.0/24" }
   tags: docker_compose

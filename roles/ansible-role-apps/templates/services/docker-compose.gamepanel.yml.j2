@@ -7,12 +7,12 @@ services:
     restart: unless-stopped
     command: --default-authentication-plugin=mysql_native_password
     volumes:
-      - /home/{{ bootstrap_admin_user }}/docker/appdata/pterodactyl/database:/var/lib/mysql
+      - /home/{{ apps_admin_user }}/docker/appdata/pterodactyl/database:/var/lib/mysql
     environment:
-      MYSQL_DATABASE: {{ gamepanel_db_name | default('panel') }}
-      MYSQL_USER: {{ gamepanel_db_user | default('pterodactyl') }}
-      MYSQL_PASSWORD: {{ gamepanel_db_password | default('pterodactyl!') }}
-      MYSQL_ROOT_PASSWORD: {{ gamepanel_db_root_password | default('pterodactyl!!') }}
+      MYSQL_DATABASE: {{ apps_gamepanel_db_name | default('panel') }}
+      MYSQL_USER: {{ apps_gamepanel_db_user | default('pterodactyl') }}
+      MYSQL_PASSWORD: {{ apps_gamepanel_db_password | default('pterodactyl!') }}
+      MYSQL_ROOT_PASSWORD: {{ apps_gamepanel_db_root_password | default('pterodactyl!!') }}
     networks:
       - pterodactyl
 
@@ -34,30 +34,30 @@ services:
     #   - "8080:80"
     #   - "8443:443"
     volumes:
-      - /home/{{ bootstrap_admin_user }}/docker/appdata/pterodactyl/panel/var:/app/var
-      - /home/{{ bootstrap_admin_user }}/docker/appdata/pterodactyl/panel/logs:/app/storage/logs
-      - /home/{{ bootstrap_admin_user }}/docker/appdata/pterodactyl/panel/nginx:/etc/nginx/conf.d
+      - /home/{{ apps_admin_user }}/docker/appdata/pterodactyl/panel/var:/app/var
+      - /home/{{ apps_admin_user }}/docker/appdata/pterodactyl/panel/logs:/app/storage/logs
+      - /home/{{ apps_admin_user }}/docker/appdata/pterodactyl/panel/nginx:/etc/nginx/conf.d
     environment:
       RECAPTCHA_ENABLED: false
-      TZ: {{ TZ | default('Etc/UTC') }}
-      APP_TIMEZONE: {{ GAMEPANEL_TIMEZONE | default('Asia/Jerusalem') }}
+      TZ: {{ apps_tz | default('Etc/UTC') }}
+      APP_TIMEZONE: {{ apps_gamepanel_timezone | default('Asia/Jerusalem') }}
       APP_ENV: production
       APP_ENVIRONMENT_ONLY: false
-      APP_URL: https://{{ GAMEPANEL_DOMAIN | default('gpanel.example.com') }}
-      APP_SERVICE_AUTHOR: {{ GAMEPANEL_EMAIL | default('noreply@example.com') }}
-      MAIL_FROM: {{ GAMEPANEL_EMAIL | default('noreply@example.com') }}
+      APP_URL: https://{{ apps_gamepanel_domain | default('gpanel.example.com') }}
+      APP_SERVICE_AUTHOR: {{ apps_gamepanel_email | default('noreply@example.com') }}
+      MAIL_FROM: {{ apps_gamepanel_email | default('noreply@example.com') }}
       MAIL_DRIVER: smtp
-      MAIL_HOST: {{ GAMEPANEL_MAIL_HOST | default('mail.example.com') }}
-      MAIL_PORT: {{ GAMEPANEL_MAIL_PORT | default('587') }}
-      MAIL_USERNAME: {{ GAMEPANEL_EMAIL | default('noreply@example.com') }}
-      MAIL_PASSWORD: {{ GAMEPANEL_MAIL_PASSWORD | default('REPLACE_WITH_YOUR_EMAIL_PASSWORD') }}
+      MAIL_HOST: {{ apps_gamepanel_mail_host | default('mail.example.com') }}
+      MAIL_PORT: {{ apps_gamepanel_mail_port | default('587') }}
+      MAIL_USERNAME: {{ apps_gamepanel_email | default('noreply@example.com') }}
+      MAIL_PASSWORD: {{ apps_gamepanel_mail_password | default('REPLACE_WITH_YOUR_EMAIL_PASSWORD') }}
       MAIL_ENCRYPTION: false
       TRUSTED_PROXIES: "*"
       PTERODACTYL_TELEMETRY_ENABLED: false
       DB_HOST: db
       DB_PORT: 3306
-      DB_USERNAME: {{ gamepanel_db_user | default('pterodactyl') }}
-      DB_PASSWORD: {{ gamepanel_db_password | default('pterodactyl!') }}
+      DB_USERNAME: {{ apps_gamepanel_db_user | default('pterodactyl') }}
+      DB_PASSWORD: {{ apps_gamepanel_db_password | default('pterodactyl!') }}
       CACHE_DRIVER: redis
       SESSION_DRIVER: redis
       QUEUE_DRIVER: redis
@@ -69,11 +69,11 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=t3_proxy"
       - "traefik.http.routers.panel.entrypoints=web"
-      - "traefik.http.routers.panel.rule=Host(`{{ GAMEPANEL_DOMAIN | default('panel.example.com') }}`)"
+      - "traefik.http.routers.panel.rule=Host(`{{ apps_gamepanel_domain | default('panel.example.com') }}`)"
       - "traefik.http.middlewares.panel-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.panel.middlewares=panel-https-redirect"
       - "traefik.http.routers.panel-secure.entrypoints=websecure"
-      - "traefik.http.routers.panel-secure.rule=Host(`{{ GAMEPANEL_DOMAIN | default('panel.example.com') }}`)"
+      - "traefik.http.routers.panel-secure.rule=Host(`{{ apps_gamepanel_domain | default('panel.example.com') }}`)"
       - "traefik.http.routers.panel-secure.tls=true"
       - "traefik.http.routers.panel-secure.tls.certresolver=cloudflare"
       - "traefik.http.routers.panel-secure.service=panel"
@@ -88,15 +88,15 @@ services:
     stdin_open: true
     tty: true
     environment:
-      TZ: {{ GAMEPANEL_TIMEZONE | default('Asia/Jerusalem') }}
-      APP_TIMEZONE: {{ GAMEPANEL_TIMEZONE | default('Asia/Jerusalem') }}
-      WINGS_UID: "{{ GAMEPANEL_UID | default('1000') }}"
-      WINGS_GID: "{{ GAMEPANEL_GID | default('1000') }}"
-      WINGS_USERNAME: {{ GAMEPANEL_WINGS_USER | default('pterodactyl') }}
+      TZ: {{ apps_gamepanel_timezone | default('Asia/Jerusalem') }}
+      APP_TIMEZONE: {{ apps_gamepanel_timezone | default('Asia/Jerusalem') }}
+      WINGS_UID: "{{ apps_gamepanel_uid | default('1000') }}"
+      WINGS_GID: "{{ apps_gamepanel_gid | default('1000') }}"
+      WINGS_USERNAME: {{ apps_gamepanel_wings_user | default('pterodactyl') }}
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "/var/lib/docker/containers/:/var/lib/docker/containers/"
-      - /home/{{ bootstrap_admin_user }}/docker/appdata/pterodactyl/wings/config:/etc/pterodactyl
+      - /home/{{ apps_admin_user }}/docker/appdata/pterodactyl/wings/config:/etc/pterodactyl
       - "/var/lib/pterodactyl/:/var/lib/pterodactyl/"
       - "/var/log/pterodactyl/:/var/log/pterodactyl/"
       - "/tmp/pterodactyl/:/tmp/pterodactyl/"
@@ -108,11 +108,11 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=t3_proxy"
       - "traefik.http.routers.wings0.entrypoints=web"
-      - "traefik.http.routers.wings0.rule=Host(`{{ GAMEPANEL_WINGS_DOMAIN | default('wings0.example.com') }}`)"
+      - "traefik.http.routers.wings0.rule=Host(`{{ apps_gamepanel_wings_domain | default('wings0.example.com') }}`)"
       - "traefik.http.middlewares.wings0-https-redirect.redirectscheme.scheme=https"
       - "traefik.http.routers.wings0.middlewares=wings0-https-redirect"
       - "traefik.http.routers.wings0-secure.entrypoints=websecure"
-      - "traefik.http.routers.wings0-secure.rule=Host(`{{ GAMEPANEL_WINGS_DOMAIN | default('wings0.example.com') }}`)"
+      - "traefik.http.routers.wings0-secure.rule=Host(`{{ apps_gamepanel_wings_domain | default('wings0.example.com') }}`)"
       - "traefik.http.routers.wings0-secure.tls=true"
       - "traefik.http.routers.wings0-secure.tls.certresolver=cloudflare"
       - "traefik.http.routers.wings0-secure.service=wings0"
@@ -123,12 +123,12 @@ services:
     container_name: pterodactyl_gamedb
     restart: unless-stopped
     volumes:
-      - /home/{{ bootstrap_admin_user }}/docker/appdata/pterodactyl/gamedb:/var/lib/mysql
+      - /home/{{ apps_admin_user }}/docker/appdata/pterodactyl/gamedb:/var/lib/mysql
     environment:
-      MYSQL_DATABASE: {{ GAME_DB_NAME | default('game') }}
-      MYSQL_USER: {{ GAME_DB_USER | default('game') }}
-      MYSQL_PASSWORD: {{ GAME_DB_PASSWORD | default('gamepass') }}
-      MYSQL_ROOT_PASSWORD: {{ GAME_DB_ROOT_PASSWORD | default('rootpass') }}
+      MYSQL_DATABASE: {{ apps_game_db_name | default('game') }}
+      MYSQL_USER: {{ apps_game_db_user | default('game') }}
+      MYSQL_PASSWORD: {{ apps_game_db_password | default('gamepass') }}
+      MYSQL_ROOT_PASSWORD: {{ apps_game_db_root_password | default('rootpass') }}
     networks:
       - wings0
       - pterodactyl
@@ -142,7 +142,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: "{{ GAMEPANEL_WINGS_SUBNET | default('172.50.0.0/16') }}"
+        - subnet: "{{ apps_gamepanel_wings_subnet | default('172.50.0.0/16') }}"
     driver_opts:
       com.docker.network.bridge.name: wings0
 

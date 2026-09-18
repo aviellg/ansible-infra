@@ -20,5 +20,5 @@ bootstrap_install_list:
   - python3-pip
   - qemu-guest-agent
   - aptitude
-  
+
 bootstrap_admin_user: autoadmin

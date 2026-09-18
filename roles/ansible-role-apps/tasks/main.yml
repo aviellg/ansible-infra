@@ -8,23 +8,23 @@
 
 - name: Setup socket proxy configuration
   ansible.builtin.include_tasks: setup_socket_proxy.yml
-  when: "'socket-proxy' in enabled_apps"
+  when: "'socket-proxy' in apps_enabled_apps"
 
-- name: Setup traefik configuration
+- name: Setup Traefik configuration
   ansible.builtin.include_tasks: setup_traefik.yml
-  when: "'traefik' in enabled_apps"
+  when: "'traefik' in apps_enabled_apps"
 
-- name: Setup authentik configuration
+- name: Setup Authentik configuration
   ansible.builtin.include_tasks: setup_authentik.yml
-  when: "'authentik' in enabled_apps"
+  when: "'authentik' in apps_enabled_apps"
 
-- name: Setup cloudflare DDNS configuration
+- name: Setup Cloudflare DDNS configuration
   ansible.builtin.include_tasks: setup_cloudflare_ddns.yml
-  when: "'cloudflare-ddns' in enabled_apps"
+  when: "'cloudflare-ddns' in apps_enabled_apps"
 
-- name: Setup nextcloud configuration
+- name: Setup Nextcloud configuration
   ansible.builtin.include_tasks: setup_nextcloud.yml
-  when: "'nextcloud' in enabled_apps"
+  when: "'nextcloud' in apps_enabled_apps"
 
-- name: Deploy enabled apps via docker compose
+- name: Deploy enabled apps via Docker Compose
   ansible.builtin.import_tasks: deploy.yml
